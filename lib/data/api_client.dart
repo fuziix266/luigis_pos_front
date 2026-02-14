@@ -3,7 +3,7 @@ import 'package:dio/dio.dart';
 class ApiClient {
   static const String baseUrl = String.fromEnvironment(
     'API_URL',
-    defaultValue: 'http://localhost:3001',
+    defaultValue: 'https://luigis-back-h52a2f-0e69e8-62-146-181-70.traefik.me',
   );
   late final Dio _dio;
   String? _token;
