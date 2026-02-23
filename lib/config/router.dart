@@ -12,7 +12,12 @@ final GoRouter appRouter = GoRouter(
   routes: [
     GoRoute(path: '/login', builder: (_, __) => const LoginPage()),
     GoRoute(path: '/', builder: (_, __) => const HomePage()),
-    GoRoute(path: '/new-order', builder: (_, __) => const NewOrderPage()),
+    GoRoute(
+        path: '/new-order',
+        builder: (context, state) {
+          final existingOrder = state.extra as Map<String, dynamic>?;
+          return NewOrderPage(existingOrder: existingOrder);
+        }),
     GoRoute(path: '/orders', builder: (_, __) => const OrdersPage()),
     GoRoute(path: '/kitchen', builder: (_, __) => const KitchenPage()),
     GoRoute(path: '/delivery', builder: (_, __) => const DeliveryPage()),

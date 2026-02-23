@@ -20,6 +20,7 @@ class _HistoryPageState extends State<HistoryPage> {
   @override
   void initState() {
     super.initState();
+    context.read<OrdersBloc>().add(StopPolling());
     _loadHistory();
   }
 
@@ -27,13 +28,13 @@ class _HistoryPageState extends State<HistoryPage> {
     final dateStr =
         '${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}';
     context.read<OrdersBloc>().add(
-      LoadHistory(
-        status: _statusFilter,
-        paymentMethod: _paymentFilter,
-        deliveryType: _deliveryFilter,
-        date: dateStr,
-      ),
-    );
+          LoadHistory(
+            status: _statusFilter,
+            paymentMethod: _paymentFilter,
+            deliveryType: _deliveryFilter,
+            date: dateStr,
+          ),
+        );
   }
 
   @override
@@ -65,48 +66,59 @@ class _HistoryPageState extends State<HistoryPage> {
       ),
       body: Column(
         children: [
-          // Filters
+          // Filters Dropdowns
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             color: Colors.white,
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  _filterChip('Todos', null, _statusFilter),
-                  _filterChip(
-                    'Entregados',
-                    'ENTREGADO',
+            child: Row(
+              children: [
+                Expanded(
+                  child: _buildDropdown(
+                    'Estado',
                     _statusFilter,
-                    type: 'status',
+                    ['Todos', 'ENTREGADO', 'ELIMINADO'],
+                    ['Todos', 'Entregados', 'Eliminados'],
+                    (val) => setState(
+                        () => _statusFilter = val == 'Todos' ? null : val),
                   ),
-                  _filterChip(
-                    'Eliminados',
-                    'ELIMINADO',
-                    _statusFilter,
-                    type: 'status',
-                  ),
-                  const SizedBox(width: 16),
-                  _filterChip(
-                    'Efectivo',
-                    'Efectivo',
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildDropdown(
+                    'Pago',
                     _paymentFilter,
-                    type: 'payment',
+                    ['Todos', 'Efectivo', 'Transferencia', 'Tarjeta'],
+                    ['Pago: Todos', 'Efectivo', 'Transferencia', 'Tarjeta'],
+                    (val) => setState(
+                        () => _paymentFilter = val == 'Todos' ? null : val),
                   ),
-                  _filterChip(
-                    'Transfer.',
-                    'Transferencia',
-                    _paymentFilter,
-                    type: 'payment',
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildDropdown(
+                    'Entrega',
+                    _deliveryFilter,
+                    [
+                      'Todos',
+                      'Local',
+                      'Retiro',
+                      'Delivery',
+                      'PedidosYa',
+                      'UberEats'
+                    ],
+                    [
+                      'Entrega: Todas',
+                      'Local',
+                      'Retiro',
+                      'Delivery',
+                      'PedidosYa',
+                      'UberEats'
+                    ],
+                    (val) => setState(
+                        () => _deliveryFilter = val == 'Todos' ? null : val),
                   ),
-                  _filterChip(
-                    'Tarjeta',
-                    'Tarjeta',
-                    _paymentFilter,
-                    type: 'payment',
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
 
@@ -197,29 +209,40 @@ class _HistoryPageState extends State<HistoryPage> {
     );
   }
 
-  Widget _filterChip(
-    String label,
-    String? value,
-    String? currentFilter, {
-    String type = 'status',
-  }) {
-    final isSelected =
-        (value == null && currentFilter == null) || currentFilter == value;
-    return Padding(
-      padding: const EdgeInsets.only(right: 6),
-      child: FilterChip(
-        label: Text(label),
-        selected: isSelected,
-        selectedColor: AppColors.primary.withValues(alpha: 0.2),
-        onSelected: (_) {
-          setState(() {
-            if (type == 'status')
-              _statusFilter = value;
-            else if (type == 'payment')
-              _paymentFilter = _paymentFilter == value ? null : value;
-          });
-          _loadHistory();
-        },
+  Widget _buildDropdown(
+    String hint,
+    String? currentValue,
+    List<String> values,
+    List<String> labels,
+    void Function(String?) onChanged,
+  ) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      height: 36,
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          isExpanded: true,
+          value: currentValue ?? 'Todos',
+          icon: const Icon(Icons.arrow_drop_down, size: 20),
+          style: const TextStyle(fontSize: 13, color: Colors.black87),
+          onChanged: (val) {
+            onChanged(val);
+            _loadHistory();
+          },
+          items: List.generate(values.length, (index) {
+            return DropdownMenuItem(
+              value: values[index],
+              child: Text(
+                labels[index],
+                overflow: TextOverflow.ellipsis,
+              ),
+            );
+          }),
+        ),
       ),
     );
   }
@@ -259,8 +282,12 @@ class _HistoryPageState extends State<HistoryPage> {
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       color: isDeleted ? Colors.grey.shade50 : Colors.white,
-      child: ListTile(
-        contentPadding: const EdgeInsets.all(12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: ExpansionTile(
+        collapsedShape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         leading: CircleAvatar(
           backgroundColor: statusColor.withValues(alpha: 0.1),
           child: Icon(
@@ -269,69 +296,230 @@ class _HistoryPageState extends State<HistoryPage> {
           ),
         ),
         title: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              '#${order['order_number']}',
-              style: const TextStyle(fontWeight: FontWeight.w700),
+            Expanded(
+              child: Row(
+                children: [
+                  Text(
+                    '#${order['order_number']}',
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      order['client_name'] ?? '',
+                      style: const TextStyle(fontSize: 14),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(width: 8),
             Text(
-              order['client_name'] ?? '',
-              style: const TextStyle(fontSize: 14),
+              '\$${_formatPrice((order['total_amount'] ?? 0) as int)}',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: isDeleted ? Colors.grey : AppColors.primary,
+                decoration: isDeleted ? TextDecoration.lineThrough : null,
+              ),
             ),
           ],
         ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 4),
-            Text(
-              items
-                  .map((i) => '${i['quantity']}x ${i['item_name']}')
-                  .join(', '),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 12),
-            ),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                Icon(
-                  _paymentIcon(order['payment_method'] ?? ''),
-                  size: 14,
-                  color: AppColors.textSecondary,
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 8.0),
+          child: Row(
+            children: [
+              Icon(
+                _paymentIcon(order['payment_method'] ?? ''),
+                size: 14,
+                color: AppColors.textSecondary,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                order['payment_method'] ?? 'N/A',
+                style: const TextStyle(fontSize: 12),
+              ),
+              const SizedBox(width: 12),
+              const Icon(
+                Icons.access_time,
+                size: 14,
+                color: AppColors.textSecondary,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                _formatTime(
+                  order['time_delivered'] ?? order['time_created'] ?? '',
                 ),
-                const SizedBox(width: 4),
-                Text(
-                  order['payment_method'] ?? 'N/A',
-                  style: const TextStyle(fontSize: 12),
-                ),
+                style: const TextStyle(fontSize: 12),
+              ),
+              if (order['delivery_type'] == 'Delivery' &&
+                  order['delivery_address'] != null) ...[
                 const SizedBox(width: 12),
                 const Icon(
-                  Icons.access_time,
+                  Icons.location_on,
                   size: 14,
                   color: AppColors.textSecondary,
                 ),
                 const SizedBox(width: 4),
-                Text(
-                  _formatTime(
-                    order['time_delivered'] ?? order['time_created'] ?? '',
+                Expanded(
+                  child: Text(
+                    order['delivery_address'].toString(),
+                    style: const TextStyle(fontSize: 12),
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  style: const TextStyle(fontSize: 12),
                 ),
               ],
-            ),
-          ],
-        ),
-        trailing: Text(
-          '\$${_formatPrice((order['total_amount'] ?? 0) as int)}',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-            color: isDeleted ? Colors.grey : AppColors.primary,
-            decoration: isDeleted ? TextDecoration.lineThrough : null,
+            ],
           ),
         ),
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border(top: BorderSide(color: Colors.grey.shade200)),
+            ),
+            child: Wrap(
+              children: [
+                if (order['time_created'] != null)
+                  _timeBadge('Creado', order['time_created']),
+                if (order['time_prep'] != null)
+                  _timeBadge('Prep', order['time_prep']),
+                if (order['time_armado'] != null)
+                  _timeBadge('Armado', order['time_armado']),
+                if (order['time_entered_oven'] != null)
+                  _timeBadge('Horno', order['time_entered_oven']),
+                if (order['time_completed'] != null)
+                  _timeBadge('Listo', order['time_completed']),
+                if (order['time_pickup'] != null)
+                  _timeBadge(
+                      order['delivery_type'] == 'Delivery' ||
+                              order['delivery_type'] == 'PedidosYa' ||
+                              order['delivery_type'] == 'UberEats'
+                          ? 'En Camino'
+                          : 'Retirado',
+                      order['time_pickup']),
+                if (order['time_delivered'] != null)
+                  _timeBadge('Entregado', order['time_delivered']),
+              ],
+            ),
+          ),
+          ...items.map<Widget>((item) {
+            final comments = item['comments'] as String?;
+            final details = item['details'] as String?;
+            final description = comments ?? details ?? '';
+
+            final descLines = description.isNotEmpty
+                ? description
+                    .split(RegExp(r'\s*[|/]\s*'))
+                    .where((s) => s.trim().isNotEmpty)
+                    .map((s) => s.trim())
+                    .toList()
+                : <String>[];
+
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                border: Border(top: BorderSide(color: Colors.grey.shade200)),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${item['quantity']}x',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Text(
+                          item['item_name'] ?? '',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        ...descLines.map((line) {
+                          Color lineColor = Colors.black54;
+                          FontWeight weight = FontWeight.normal;
+
+                          if (line.contains('Sin') ||
+                              line.contains('Reemplazo') ||
+                              line.contains('->')) {
+                            lineColor = Colors.red;
+                            weight = FontWeight.w600;
+                          } else if (line.contains('+')) {
+                            lineColor = const Color(0xFF2E7D32);
+                            weight = FontWeight.w600;
+                          }
+
+                          return Text(
+                            line,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: lineColor,
+                              fontWeight: weight,
+                            ),
+                          );
+                        }),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '\$${_formatPrice((item['total_price'] ?? 0) as int)}',
+                    style: const TextStyle(
+                      color: Colors.grey,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+        ],
+      ),
+    );
+  }
+
+  Widget _timeBadge(String label, String? time) {
+    if (time == null || time.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      margin: const EdgeInsets.only(right: 8, bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            '$label: ',
+            style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: AppColors.primary),
+          ),
+          Text(
+            _formatTime(time),
+            style: const TextStyle(fontSize: 11, color: Colors.black87),
+          ),
+        ],
       ),
     );
   }

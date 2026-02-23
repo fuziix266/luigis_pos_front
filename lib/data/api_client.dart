@@ -4,7 +4,7 @@ import 'package:dio/dio.dart';
 class ApiClient {
   static const String baseUrl = String.fromEnvironment(
     'API_URL',
-    defaultValue: 'https://luigis.cl',
+    defaultValue: 'http://192.168.1.14:2000',
   );
   late final Dio _dio;
   String? _token;
@@ -192,5 +192,12 @@ class ApiClient {
 
   Future<void> updateConfig(String key, String value) async {
     await _dio.put('/api/config/$key', data: {'value': value});
+  }
+
+  Future<void> updateOrdersSort(List<int> orderIds) async {
+    await _dio.post(
+      '/api/orders/reorder',
+      data: {'orderIds': orderIds},
+    );
   }
 }

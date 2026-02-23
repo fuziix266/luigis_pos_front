@@ -9,7 +9,9 @@ class HomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isWide = MediaQuery.of(context).size.width > 600;
+    // 16:9 usually means landscape/desktop. 9:16 means portrait/mobile.
+    // Adjusted breakpoint to 900 to ensure 4 columns only show on wider screens.
+    final isWide = MediaQuery.of(context).size.width > 900;
 
     return BlocListener<AuthBloc, AuthState>(
       listener: (context, state) {
@@ -85,7 +87,7 @@ class HomePage extends StatelessWidget {
                     crossAxisCount: isWide ? 4 : 2,
                     mainAxisSpacing: 16,
                     crossAxisSpacing: 16,
-                    childAspectRatio: isWide ? 1.3 : 1.1,
+                    childAspectRatio: isWide ? 1.0 : 1.5,
                     children: [
                       _menuCard(
                         context,

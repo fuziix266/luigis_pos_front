@@ -5,6 +5,7 @@ class AppColors {
   static const primary = Color(0xFFF48C25); // Naranja Luigi's
   static const primaryDark = Color(0xFFD4760D);
   static const primaryLight = Color(0xFFFFA94D);
+  static const secondary = Color(0xFFF97316); // Naranja rojizo para acentos
   static const background = Color(0xFFF8F7F5); // Crema suave
   static const surface = Colors.white;
   static const textPrimary = Color(0xFF2D2D2D);
@@ -17,11 +18,11 @@ class AppColors {
   // Status colors
   static const statusNuevo = Color(0xFF3B82F6);
   static const statusPrep = Color(0xFFF59E0B);
-  static const statusArmado = Color(0xFF8B5CF6);
+  static const statusArmado = Color(0xFF0EA5E9); // Celeste
   static const statusHorno = Color(0xFFEF4444);
   static const statusListo = Color(0xFF10B981);
-  static const statusRetirado = Color(0xFF06B6D4);
-  static const statusEnCamino = Color(0xFF6366F1);
+  static const statusRetirado = Color(0xFF9333EA); // Morado
+  static const statusEnCamino = Color(0xFF1D4ED8); // Azul más intenso
   static const statusEntregado = Color(0xFF059669);
   static const statusEliminado = Color(0xFF9CA3AF);
 

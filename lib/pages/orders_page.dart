@@ -31,7 +31,10 @@ class _OrdersPageState extends State<OrdersPage> {
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.go('/'),
+          onPressed: () {
+            context.read<OrdersBloc>().add(StopPolling());
+            context.go('/');
+          },
         ),
         title: const Text('Pedidos Activos'),
         actions: [
@@ -68,34 +71,44 @@ class _OrdersPageState extends State<OrdersPage> {
 
             return LayoutBuilder(
               builder: (context, constraints) {
-                if (constraints.maxWidth > 800) {
-                  // Desktop: grid
-                  return GridView.builder(
-                    padding: const EdgeInsets.all(16),
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: constraints.maxWidth > 1200 ? 4 : 3,
-                      childAspectRatio: 0.85,
-                      mainAxisSpacing: 12,
-                      crossAxisSpacing: 12,
-                    ),
-                    itemCount: state.orders.length,
-                    itemBuilder: (_, i) => OrderCardWidget(
-                      order: state.orders[i],
-                      onStatusChange: _changeStatus,
-                      onDelete: _deleteOrder,
-                    ),
-                  );
-                }
+                // Calculate aspect ratio. Default to vertical if height is 0 to avoid division by zero.
+                final aspectRatio = constraints.maxHeight > 0
+                    ? constraints.maxWidth / constraints.maxHeight
+                    : 0.0;
+                // Horizontal layout only if aspect ratio is 16:9 (1.77) or wider
+                final isHorizontal = aspectRatio >= (16 / 9);
 
-                // Mobile: list
-                return ListView.builder(
-                  padding: const EdgeInsets.all(12),
+                return ReorderableListView.builder(
+                  buildDefaultDragHandles: false,
+                  scrollDirection:
+                      isHorizontal ? Axis.horizontal : Axis.vertical,
+                  padding: const EdgeInsets.all(16),
                   itemCount: state.orders.length,
-                  itemBuilder: (_, i) => OrderCardWidget(
-                    order: state.orders[i],
-                    onStatusChange: _changeStatus,
-                    onDelete: _deleteOrder,
-                  ),
+                  onReorder: (oldIndex, newIndex) {
+                    context
+                        .read<OrdersBloc>()
+                        .add(ReorderOrders(oldIndex, newIndex));
+                  },
+                  itemBuilder: (context, index) {
+                    final order = state.orders[index];
+                    return Container(
+                      key: ValueKey(order['id']),
+                      width: isHorizontal ? 380 : null,
+                      margin: EdgeInsets.only(
+                        bottom: isHorizontal ? 0 : 8,
+                        right: isHorizontal ? 8 : 0,
+                      ),
+                      // Asegurar alineación superior en horizontal
+                      alignment: Alignment.topCenter,
+                      child: OrderCardWidget(
+                        order: order,
+                        index: index,
+                        onStatusChange: _changeStatus,
+                        onDelete: _deleteOrder,
+                        onUpdate: _updateOrderData,
+                      ),
+                    );
+                  },
                 );
               },
             );
@@ -113,6 +126,10 @@ class _OrdersPageState extends State<OrdersPage> {
 
   void _changeStatus(int orderId, String newStatus) {
     context.read<OrdersBloc>().add(UpdateOrderStatus(orderId, newStatus));
+  }
+
+  void _updateOrderData(int orderId, Map<String, dynamic> data) {
+    context.read<OrdersBloc>().add(UpdateOrder(orderId, data));
   }
 
   void _deleteOrder(int orderId) {

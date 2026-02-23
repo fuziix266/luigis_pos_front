@@ -78,10 +78,14 @@ class _DeliveryPageState extends State<DeliveryPage> {
   }
 
   Widget _deliveryCard(Map<String, dynamic> order) {
-    final status = order['status'] ?? 'NUEVO';
+    final status = (order['status'] ?? 'NUEVO').toString();
     final statusColor = AppColors.getStatusColor(status);
-    final phone = order['phone'] ?? '';
-    final address = order['delivery_address'] ?? '';
+    final phone = (order['phone'] ?? '').toString();
+    final address = (order['delivery_address'] ?? '').toString();
+    final clientName = (order['client_name'] ?? '').toString();
+    final orderNumber = (order['order_number'] ?? '').toString();
+    final paymentMethod = (order['payment_method'] ?? 'No definido').toString();
+    final totalAmount = int.tryParse(order['total_amount'].toString()) ?? 0;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -98,7 +102,7 @@ class _DeliveryPageState extends State<DeliveryPage> {
             Row(
               children: [
                 Text(
-                  '#${order['order_number']}',
+                  '#$orderNumber',
                   style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.w700,
@@ -106,7 +110,7 @@ class _DeliveryPageState extends State<DeliveryPage> {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  order['client_name'] ?? '',
+                  clientName,
                   style: const TextStyle(fontSize: 16),
                 ),
                 const Spacer(),
@@ -163,7 +167,7 @@ class _DeliveryPageState extends State<DeliveryPage> {
                     const Color(0xFF25D366),
                     () {
                       final msg = Uri.encodeComponent(
-                        'Hola! Su pedido #${order['order_number']} de Luigi\'s Pizza está en camino.',
+                        'Hola! Su pedido #$orderNumber de Luigi\'s Pizza está en camino.',
                       );
                       launchUrl(Uri.parse('https://wa.me/$phone?text=$msg'));
                     },
@@ -182,7 +186,10 @@ class _DeliveryPageState extends State<DeliveryPage> {
               ],
             ),
 
-            const Divider(height: 20),
+            const SizedBox(height: 12),
+            const Divider(),
+            _buildOrderItems(order['items'] as List<dynamic>? ?? []),
+            const Divider(), // Keep existing divider or merge
 
             // Total & Payment
             Row(
@@ -194,12 +201,12 @@ class _DeliveryPageState extends State<DeliveryPage> {
                 ),
                 const SizedBox(width: 4),
                 Text(
-                  order['payment_method'] ?? 'No definido',
+                  paymentMethod,
                   style: const TextStyle(color: AppColors.textSecondary),
                 ),
                 const Spacer(),
                 Text(
-                  'Total: \$${_formatPrice((order['total_amount'] ?? 0) as int)}',
+                  'Total: \$${_formatPrice(totalAmount)}',
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
@@ -253,28 +260,52 @@ class _DeliveryPageState extends State<DeliveryPage> {
   }
 
   Widget _buildStatusButtons(int orderId, String status) {
+    // Solo mostrar botones cuando cocina marcó como LISTO o posterior
+    if (!['LISTO', 'RETIRADO', 'EN_CAMINO'].contains(status)) {
+      return const SizedBox.shrink();
+    }
+
     final buttons = <Widget>[];
 
     if (status == 'LISTO') {
-      buttons.add(_statusButton('EN_CAMINO', Icons.delivery_dining, orderId));
-    } else if (status == 'EN_CAMINO') {
-      buttons.add(_statusButton('ENTREGADO', Icons.done_all, orderId));
+      buttons.add(_statusButton(
+        'RETIRADO',
+        Icons.shopping_bag,
+        orderId,
+        const Color(0xFF7B1FA2), // Purple
+      ));
+      buttons.add(_statusButton(
+        'EN_CAMINO',
+        Icons.delivery_dining,
+        orderId,
+        const Color(0xFF1565C0), // Blue
+      ));
     } else if (status == 'RETIRADO') {
-      buttons.add(_statusButton('EN_CAMINO', Icons.delivery_dining, orderId));
+      buttons.add(_statusButton(
+        'EN_CAMINO',
+        Icons.delivery_dining,
+        orderId,
+        const Color(0xFF1565C0),
+      ));
+    } else if (status == 'EN_CAMINO') {
+      buttons.add(_statusButton(
+        'ENTREGADO',
+        Icons.done_all,
+        orderId,
+        const Color(0xFF2E7D32), // Green
+      ));
     }
 
     return Wrap(spacing: 8, children: buttons);
   }
 
-  Widget _statusButton(String status, IconData icon, int orderId) {
-    final color = AppColors.getStatusColor(status);
+  Widget _statusButton(String status, IconData icon, int orderId,
+      [Color? customColor]) {
+    final color = customColor ?? AppColors.getStatusColor(status);
     return ElevatedButton.icon(
       style: ElevatedButton.styleFrom(backgroundColor: color),
       onPressed: () {
         context.read<OrdersBloc>().add(UpdateOrderStatus(orderId, status));
-        Future.delayed(const Duration(milliseconds: 500), () {
-          if (mounted) context.read<OrdersBloc>().add(LoadDeliveryOrders());
-        });
       },
       icon: Icon(icon),
       label: Text(AppColors.getStatusLabel(status)),
@@ -292,5 +323,104 @@ class _DeliveryPageState extends State<DeliveryPage> {
       if (count % 3 == 0 && i > 0) result.write('.');
     }
     return result.toString().split('').reversed.join();
+  }
+
+  Widget _buildOrderItems(List<dynamic> items) {
+    if (items.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8F9FA),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          ...items.map<Widget>((item) {
+            final comments = item['comments'] as String?;
+            final details = item['details'] as String?;
+            final description = comments ?? details ?? '';
+
+            final descLines = description.isNotEmpty
+                ? description
+                    .split(RegExp(r'\s*[|/]\s*'))
+                    .where((s) => s.trim().isNotEmpty)
+                    .map((s) => s.trim())
+                    .toList()
+                : <String>[];
+
+            final itemName = (item['item_name'] ?? 'Producto').toString();
+            final totalPrice =
+                int.tryParse((item['total_price'] ?? 0).toString()) ?? 0;
+
+            return Container(
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(
+                    color: Colors.grey.shade200,
+                    width: 1,
+                  ),
+                ),
+              ),
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          itemName,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 15,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        ...descLines.map((line) {
+                          Color lineColor = Colors.black54;
+                          FontWeight weight = FontWeight.normal;
+
+                          if (line.contains('Sin') ||
+                              line.contains('Reemplazo') ||
+                              line.contains('->')) {
+                            lineColor = Colors.red;
+                            weight = FontWeight.w600;
+                          } else if (line.contains('+')) {
+                            lineColor = const Color(0xFF2E7D32);
+                            weight = FontWeight.w600;
+                          }
+
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 2),
+                            child: Text(
+                              line,
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: lineColor,
+                                fontWeight: weight,
+                              ),
+                            ),
+                          );
+                        }),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '\$${_formatPrice(totalPrice)}',
+                    style: const TextStyle(
+                      color: Colors.grey,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
+    );
   }
 }
