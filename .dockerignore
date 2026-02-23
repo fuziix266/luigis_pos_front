@@ -5,3 +5,14 @@ build/
 *.iml
 android/.gradle/
 windows/
+
+# Generated plugin files with local paths - must be regenerated in Docker
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# Test scripts
+test_api.dart
+test_api2.dart
+test_geocode.dart
+test_poly.dart
+vmservice.txt
