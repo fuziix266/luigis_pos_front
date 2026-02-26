@@ -39,6 +39,14 @@ class _OrdersPageState extends State<OrdersPage> {
         title: const Text('Pedidos Activos'),
         actions: [
           IconButton(
+            tooltip: 'Ver pedidos programados',
+            icon: const Icon(Icons.schedule, color: Colors.white),
+            onPressed: () {
+              context.read<OrdersBloc>().add(StopPolling());
+              context.go('/orders/scheduled');
+            },
+          ),
+          IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () => context.read<OrdersBloc>().add(LoadActiveOrders()),
           ),

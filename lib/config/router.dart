@@ -7,6 +7,8 @@ import '../pages/kitchen_page.dart';
 import '../pages/delivery_page.dart';
 import '../pages/history_page.dart';
 
+import '../pages/scheduled_orders_page.dart';
+
 final GoRouter appRouter = GoRouter(
   initialLocation: '/login',
   routes: [
@@ -19,6 +21,9 @@ final GoRouter appRouter = GoRouter(
           return NewOrderPage(existingOrder: existingOrder);
         }),
     GoRoute(path: '/orders', builder: (_, __) => const OrdersPage()),
+    GoRoute(
+        path: '/orders/scheduled',
+        builder: (_, __) => const ScheduledOrdersPage()),
     GoRoute(path: '/kitchen', builder: (_, __) => const KitchenPage()),
     GoRoute(path: '/delivery', builder: (_, __) => const DeliveryPage()),
     GoRoute(path: '/history', builder: (_, __) => const HistoryPage()),

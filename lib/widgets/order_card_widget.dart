@@ -257,7 +257,8 @@ class _OrderCardWidgetState extends State<OrderCardWidget> {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    if (_elapsedTime.isNotEmpty) ...[
+                    if (_elapsedTime.isNotEmpty &&
+                        widget.order['activation_time'] == null) ...[
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 6, vertical: 4),
@@ -276,6 +277,32 @@ class _OrderCardWidgetState extends State<OrderCardWidget> {
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.amber.shade900,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+                    if (widget.order['activation_time'] != null) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.purple.shade100,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.schedule,
+                                size: 12, color: Colors.purple.shade900),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Prog: ${(widget.order['activation_time'] as String).substring(11, 16)}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.purple.shade900,
                               ),
                             ),
                           ],
