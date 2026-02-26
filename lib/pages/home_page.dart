@@ -18,113 +18,120 @@ class HomePage extends StatelessWidget {
         if (state is AuthInitial) context.go('/login');
       },
       child: Scaffold(
-        body: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              children: [
-                // Header
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: const Icon(
-                        Icons.local_pizza,
-                        color: AppColors.primary,
-                        size: 28,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
+        body: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Color(0xFF5A3C8C),
+                Color(0xFF452D72),
+                Color(0xFF301E50),
+              ],
+            ),
+          ),
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                children: [
+                  // Header
+                  Row(
+                    children: [
+                      Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            "Luigi's Pizza",
-                            style: Theme.of(context).textTheme.titleLarge,
+                          Image.asset(
+                            'assets/images/LogoPizzeria.png',
+                            height: 50,
+                            fit: BoxFit.contain,
                           ),
                           Text(
                             'Sistema POS',
-                            style: Theme.of(context).textTheme.bodyMedium,
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(color: Colors.white70),
                           ),
                         ],
                       ),
-                    ),
-                    BlocBuilder<AuthBloc, AuthState>(
-                      builder: (context, state) {
-                        if (state is AuthAuthenticated) {
-                          return Chip(
-                            avatar: const Icon(Icons.person, size: 18),
-                            label: Text(state.user['full_name'] ?? ''),
-                          );
-                        }
-                        return const SizedBox.shrink();
-                      },
-                    ),
-                    const SizedBox(width: 8),
-                    IconButton(
-                      icon: const Icon(Icons.logout, color: AppColors.error),
-                      onPressed: () =>
-                          context.read<AuthBloc>().add(LogoutRequested()),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 32),
-
-                // Nuevo Pedido (botón grande)
-                _buildMainButton(context),
-
-                const SizedBox(height: 24),
-
-                // Grid de menú
-                Expanded(
-                  child: GridView.count(
-                    crossAxisCount: isWide ? 4 : 2,
-                    mainAxisSpacing: 16,
-                    crossAxisSpacing: 16,
-                    childAspectRatio: isWide ? 1.0 : 1.5,
-                    children: [
-                      _menuCard(
-                        context,
-                        Icons.receipt_long,
-                        'Pedidos',
-                        'Ver activos',
-                        AppColors.info,
-                        '/orders',
+                      const Spacer(),
+                      BlocBuilder<AuthBloc, AuthState>(
+                        builder: (context, state) {
+                          if (state is AuthAuthenticated) {
+                            return Chip(
+                              avatar: const Icon(Icons.person, size: 18),
+                              label: Text(state.user['full_name'] ?? ''),
+                            );
+                          }
+                          return const SizedBox.shrink();
+                        },
                       ),
-                      _menuCard(
-                        context,
-                        Icons.restaurant,
-                        'Cocina',
-                        'Monitor',
-                        AppColors.error,
-                        '/kitchen',
-                      ),
-                      _menuCard(
-                        context,
-                        Icons.delivery_dining,
-                        'Delivery',
-                        'En camino',
-                        AppColors.success,
-                        '/delivery',
-                      ),
-                      _menuCard(
-                        context,
-                        Icons.history,
-                        'Historial',
-                        'Ventas',
-                        AppColors.warning,
-                        '/history',
+                      const SizedBox(width: 8),
+                      IconButton(
+                        icon: const Icon(Icons.logout, color: AppColors.error),
+                        onPressed: () =>
+                            context.read<AuthBloc>().add(LogoutRequested()),
                       ),
                     ],
                   ),
-                ),
-              ],
+
+                  const SizedBox(height: 32),
+
+                  // Nuevo Pedido (botón grande)
+                  _buildMainButton(context, isWide),
+
+                  const SizedBox(height: 24),
+
+                  // Grid de menú
+                  Expanded(
+                    child: GridView.count(
+                      crossAxisCount: isWide ? 4 : 2,
+                      mainAxisSpacing: 16,
+                      crossAxisSpacing: 16,
+                      childAspectRatio: isWide ? 1.0 : 0.85,
+                      children: [
+                        _menuCard(
+                          context,
+                          isWide,
+                          Icons.receipt_long,
+                          'Pedidos',
+                          'Ver activos',
+                          AppColors.info,
+                          '/orders',
+                        ),
+                        _menuCard(
+                          context,
+                          isWide,
+                          Icons.restaurant,
+                          'Cocina',
+                          'Monitor',
+                          AppColors.error,
+                          '/kitchen',
+                        ),
+                        _menuCard(
+                          context,
+                          isWide,
+                          Icons.delivery_dining,
+                          'Delivery',
+                          'En camino',
+                          AppColors.success,
+                          '/delivery',
+                        ),
+                        _menuCard(
+                          context,
+                          isWide,
+                          Icons.history,
+                          'Historial',
+                          'Ventas',
+                          AppColors.warning,
+                          '/history',
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -132,7 +139,7 @@ class HomePage extends StatelessWidget {
     );
   }
 
-  Widget _buildMainButton(BuildContext context) {
+  Widget _buildMainButton(BuildContext context, bool isWide) {
     return Material(
       borderRadius: BorderRadius.circular(20),
       elevation: 4,
@@ -142,7 +149,10 @@ class HomePage extends StatelessWidget {
         onTap: () => context.go('/new-order'),
         child: Container(
           width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 24),
+          padding: EdgeInsets.symmetric(
+            vertical: isWide ? 28 : 20,
+            horizontal: 24,
+          ),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
               colors: [AppColors.primary, AppColors.primaryDark],
@@ -172,6 +182,7 @@ class HomePage extends StatelessWidget {
 
   Widget _menuCard(
     BuildContext context,
+    bool isWide,
     IconData icon,
     String title,
     String subtitle,
@@ -179,40 +190,49 @@ class HomePage extends StatelessWidget {
     String route,
   ) {
     return Material(
-      color: Colors.white,
+      color:
+          const Color(0xFF2D1B4E).withOpacity(0.4), // Morado muy oscuro y sutil
       borderRadius: BorderRadius.circular(18),
-      elevation: 2,
-      shadowColor: color.withValues(alpha: 0.2),
       child: InkWell(
         borderRadius: BorderRadius.circular(18),
         onTap: () => context.go(route),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(14),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: Colors.white.withOpacity(0.1)),
+          ),
+          child: Padding(
+            padding: EdgeInsets.all(isWide ? 20 : 12),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(icon, size: 32, color: color),
                 ),
-                child: Icon(icon, size: 32, color: color),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
+                const SizedBox(height: 12),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                subtitle,
-                style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
-              ),
-            ],
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.white.withOpacity(0.6),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

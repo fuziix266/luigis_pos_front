@@ -52,135 +52,159 @@ class _ExtraIngredientsModalState extends State<ExtraIngredientsModal> {
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        height: 600,
-        child: Column(
-          children: [
-            // Title
-            const Text(
-              'Agregar Extras',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-
-            // Search
-            TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: 'Buscar ingrediente...',
-                prefixIcon: const Icon(Icons.search),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 400),
+        child: Dialog(
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.white,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            height: 600,
+            child: Column(
+              children: [
+                // Title
+                const Text(
+                  'Agregar Extras',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              ),
-              onChanged: _filterIngredients,
-            ),
-            const SizedBox(height: 12),
+                const SizedBox(height: 16),
 
-            // List
-            Expanded(
-              child: ListView.builder(
-                itemCount: _filteredIngredients.length,
-                itemBuilder: (ctx, i) {
-                  final ing = _filteredIngredients[i];
-                  final name = ing['name'] as String;
-                  final qty = _selectedQuantities[name] ?? 0;
+                // Search
+                TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    hintText: 'Buscar ingrediente...',
+                    prefixIcon: const Icon(Icons.search),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
+                  ),
+                  onChanged: _filterIngredients,
+                ),
+                const SizedBox(height: 12),
 
-                  return Card(
-                    elevation: 0,
-                    color: Colors.grey.shade50,
-                    margin: const EdgeInsets.only(bottom: 8),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 8),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              name,
-                              style: const TextStyle(
-                                  fontSize: 16, fontWeight: FontWeight.w500),
-                            ),
+                // List
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: _filteredIngredients.length,
+                    itemBuilder: (ctx, i) {
+                      final ing = _filteredIngredients[i];
+                      final name = ing['name'] as String;
+                      final qty = _selectedQuantities[name] ?? 0;
+
+                      return Card(
+                        elevation: 0,
+                        color: Colors.grey.shade50,
+                        margin: const EdgeInsets.only(bottom: 8),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  name,
+                                  style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w500),
+                                ),
+                              ),
+                              // Stepper
+                              if (qty > 0)
+                                IconButton(
+                                  icon: const Icon(Icons.remove_circle_outline,
+                                      color: Colors.red),
+                                  onPressed: () {
+                                    setState(() {
+                                      if (qty > 0) {
+                                        _selectedQuantities[name] = qty - 1;
+                                        if (_selectedQuantities[name] == 0) {
+                                          _selectedQuantities.remove(name);
+                                        }
+                                      }
+                                    });
+                                  },
+                                ),
+                              if (qty > 0)
+                                Text(
+                                  '$qty',
+                                  style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold),
+                                ),
+                              IconButton(
+                                icon: const Icon(Icons.add_circle,
+                                    color: AppColors.success),
+                                onPressed: () {
+                                  setState(() {
+                                    _selectedQuantities[name] = qty + 1;
+                                  });
+                                },
+                              ),
+                            ],
                           ),
-                          // Stepper
-                          if (qty > 0)
-                            IconButton(
-                              icon: const Icon(Icons.remove_circle_outline,
-                                  color: Colors.red),
-                              onPressed: () {
-                                setState(() {
-                                  if (qty > 0) {
-                                    _selectedQuantities[name] = qty - 1;
-                                    if (_selectedQuantities[name] == 0) {
-                                      _selectedQuantities.remove(name);
-                                    }
-                                  }
-                                });
-                              },
-                            ),
-                          if (qty > 0)
-                            Text(
-                              '$qty',
-                              style: const TextStyle(
-                                  fontSize: 16, fontWeight: FontWeight.bold),
-                            ),
-                          IconButton(
-                            icon: const Icon(Icons.add_circle,
-                                color: AppColors.success),
-                            onPressed: () {
-                              setState(() {
-                                _selectedQuantities[name] = qty + 1;
-                              });
-                            },
+                        ),
+                      );
+                    },
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+                // Actions
+                Column(
+                  children: [
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          final List<String> result = [];
+                          _selectedQuantities.forEach((name, count) {
+                            for (int k = 0; k < count; k++) {
+                              result.add(name);
+                            }
+                          });
+                          Navigator.of(context).pop(result);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.success,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                        ],
+                        ),
+                        child: const Text('Confirmar Extras',
+                            style: TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.bold)),
                       ),
                     ),
-                  );
-                },
-              ),
-            ),
-
-            const SizedBox(height: 16),
-            // Actions
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('CANCELAR',
-                      style: TextStyle(color: Colors.grey)),
-                ),
-                const SizedBox(width: 12),
-                ElevatedButton(
-                  onPressed: () {
-                    // Flatten map to list: {'Pollo': 2} -> ['Pollo', 'Pollo']
-                    final List<String> result = [];
-                    _selectedQuantities.forEach((name, count) {
-                      for (int k = 0; k < count; k++) {
-                        result.add(name);
-                      }
-                    });
-                    Navigator.of(context).pop(result);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.success,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text('Cancelar',
+                            style: TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.bold)),
+                      ),
                     ),
-                  ),
-                  child: const Text('CONFIRMAR EXTRAS'),
+                  ],
                 ),
               ],
             ),
-          ],
+          ),
         ),
       ),
     );

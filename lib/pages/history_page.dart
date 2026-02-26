@@ -197,7 +197,8 @@ class _HistoryPageState extends State<HistoryPage> {
                   return ListView.builder(
                     padding: const EdgeInsets.all(12),
                     itemCount: orders.length,
-                    itemBuilder: (_, i) => _historyCard(orders[i]),
+                    itemBuilder: (context, i) =>
+                        _historyCard(context, orders[i]),
                   );
                 }
                 return const SizedBox.shrink();
@@ -273,7 +274,7 @@ class _HistoryPageState extends State<HistoryPage> {
     );
   }
 
-  Widget _historyCard(Map<String, dynamic> order) {
+  Widget _historyCard(BuildContext context, Map<String, dynamic> order) {
     final status = order['status'] ?? '';
     final statusColor = AppColors.getStatusColor(status);
     final items = order['items'] as List? ?? [];
@@ -316,14 +317,56 @@ class _HistoryPageState extends State<HistoryPage> {
                 ],
               ),
             ),
-            Text(
-              '\$${_formatPrice((order['total_amount'] ?? 0) as int)}',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: isDeleted ? Colors.grey : AppColors.primary,
-                decoration: isDeleted ? TextDecoration.lineThrough : null,
-              ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '\$${_formatPrice((order['total_amount'] ?? 0) as int)}',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: isDeleted ? Colors.grey : AppColors.primary,
+                    decoration: isDeleted ? TextDecoration.lineThrough : null,
+                  ),
+                ),
+                if (!isDeleted)
+                  IconButton(
+                    icon: const Icon(Icons.delete, color: Colors.red),
+                    onPressed: () {
+                      showDialog(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          title: const Text('Eliminar Pedido'),
+                          content: Text(
+                              '¿Estás seguro de que deseas marcar el pedido #${order['order_number']} como eliminado?'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx),
+                              child: const Text('Cancelar'),
+                            ),
+                            TextButton(
+                              onPressed: () {
+                                Navigator.pop(ctx);
+                                context.read<OrdersBloc>().add(
+                                      UpdateOrderStatus(
+                                          order['id'], 'ELIMINADO'),
+                                    );
+                                Future.delayed(
+                                  const Duration(milliseconds: 300),
+                                  () => _loadHistory(),
+                                );
+                              },
+                              style:
+                                  TextButton.styleFrom(iconColor: Colors.red),
+                              child: const Text('Eliminar',
+                                  style: TextStyle(color: Colors.red)),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+              ],
             ),
           ],
         ),
@@ -387,13 +430,17 @@ class _HistoryPageState extends State<HistoryPage> {
                 if (order['time_created'] != null)
                   _timeBadge('Creado', order['time_created']),
                 if (order['time_prep'] != null)
-                  _timeBadge('Prep', order['time_prep']),
+                  _timeBadge('Prep', order['time_prep'],
+                      startTime: order['time_created']),
                 if (order['time_armado'] != null)
-                  _timeBadge('Armado', order['time_armado']),
+                  _timeBadge('Armado', order['time_armado'],
+                      startTime: order['time_created']),
                 if (order['time_entered_oven'] != null)
-                  _timeBadge('Horno', order['time_entered_oven']),
+                  _timeBadge('Horno', order['time_entered_oven'],
+                      startTime: order['time_created']),
                 if (order['time_completed'] != null)
-                  _timeBadge('Listo', order['time_completed']),
+                  _timeBadge('Listo', order['time_completed'],
+                      startTime: order['time_created']),
                 if (order['time_pickup'] != null)
                   _timeBadge(
                       order['delivery_type'] == 'Delivery' ||
@@ -401,9 +448,11 @@ class _HistoryPageState extends State<HistoryPage> {
                               order['delivery_type'] == 'UberEats'
                           ? 'En Camino'
                           : 'Retirado',
-                      order['time_pickup']),
+                      order['time_pickup'],
+                      startTime: order['time_created']),
                 if (order['time_delivered'] != null)
-                  _timeBadge('Entregado', order['time_delivered']),
+                  _timeBadge('Entregado', order['time_delivered'],
+                      startTime: order['time_created']),
               ],
             ),
           ),
@@ -494,8 +543,31 @@ class _HistoryPageState extends State<HistoryPage> {
     );
   }
 
-  Widget _timeBadge(String label, String? time) {
+  String _calculateDurationText(String? startTime, String? endTime) {
+    if (startTime == null ||
+        endTime == null ||
+        startTime.isEmpty ||
+        endTime.isEmpty) return '';
+    try {
+      final start = DateTime.parse(startTime);
+      final end = DateTime.parse(endTime);
+      final diff = end.difference(start);
+      if (diff.inMinutes < 0) return '';
+      return '(${diff.inMinutes}m)';
+    } catch (_) {
+      return '';
+    }
+  }
+
+  Widget _timeBadge(String label, String? time, {String? startTime}) {
     if (time == null || time.isEmpty) return const SizedBox.shrink();
+
+    String durationText = '';
+    if (startTime != null) {
+      durationText = _calculateDurationText(startTime, time);
+    }
+    final fullLabel =
+        durationText.isNotEmpty ? '$label $durationText:' : '$label:';
 
     return Container(
       margin: const EdgeInsets.only(right: 8, bottom: 8),
@@ -509,7 +581,7 @@ class _HistoryPageState extends State<HistoryPage> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            '$label: ',
+            '$fullLabel ',
             style: const TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.bold,

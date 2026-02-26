@@ -1,6 +1,10 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../blocs/catalog/catalog_bloc.dart';
 import '../config/theme.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter/services.dart';
 
 class OrderCardWidget extends StatefulWidget {
   final Map<String, dynamic> order;
@@ -28,6 +32,152 @@ class OrderCardWidget extends StatefulWidget {
 class _OrderCardWidgetState extends State<OrderCardWidget> {
   bool _showConfirmation = false;
   bool _showActions = false;
+  Timer? _timer;
+  String _elapsedTime = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _startTimer();
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  void _startTimer() {
+    _updateElapsedTime();
+    _timer = Timer.periodic(const Duration(minutes: 1), (_) {
+      _updateElapsedTime();
+    });
+  }
+
+  void _updateElapsedTime() {
+    final startTimeStr = widget.order['time_created'] as String?;
+    if (startTimeStr == null || startTimeStr.isEmpty) return;
+    try {
+      final start = DateTime.parse(startTimeStr);
+      final now = DateTime.now();
+      final diff = now.difference(start);
+      if (diff.inMinutes < 0) return;
+
+      final hours = diff.inHours;
+      final minutes = diff.inMinutes % 60;
+
+      String newElapsed = hours > 0 ? '${hours}h ${minutes}m' : '${minutes}m';
+
+      if (newElapsed != _elapsedTime && mounted) {
+        setState(() {
+          _elapsedTime = newElapsed;
+        });
+      }
+    } catch (_) {}
+  }
+
+  static const _drinkKeywords = [
+    'Coca Cola',
+    'Coca',
+    'Fanta',
+    'Sprite',
+    'Nordic',
+    'Bebida',
+    'Lata',
+    '1.5L',
+    '2.5L',
+    'Con Gas',
+    'Sin Gas',
+    'Nectar',
+    'Agua'
+  ];
+
+  bool _isDrinkDetail(String text) {
+    return _drinkKeywords.any(
+      (kw) => text.toLowerCase().contains(kw.toLowerCase()),
+    );
+  }
+
+  bool _isPromoItem(String itemName) {
+    return itemName.contains('Promo 2') ||
+        itemName.contains('Promo del Día') ||
+        itemName.contains('Promo del Dia');
+  }
+
+  Future<void> _showDrinkPickerForItem(
+      Map<String, dynamic> item, String currentDrinkDetail) async {
+    final catalogState = context.read<CatalogBloc>().state;
+    if (catalogState is! CatalogLoaded) return;
+
+    final drinks = catalogState.drinks;
+
+    final newDrink = await showDialog<String>(
+      context: context,
+      builder: (ctx) => Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 400),
+          child: AlertDialog(
+            backgroundColor: Colors.white,
+            surfaceTintColor: Colors.white,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: const Text(
+              'Cambiar Bebida',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: drinks.length,
+                itemBuilder: (ctx, i) => ListTile(
+                  title: Text(drinks[i]['name'] as String,
+                      textAlign: TextAlign.center),
+                  onTap: () =>
+                      Navigator.of(ctx).pop(drinks[i]['name'] as String),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    if (newDrink == null || !mounted) return;
+
+    // Rebuild the full items list replacing the drink in this item's description
+    final allItems =
+        List<Map<String, dynamic>>.from(widget.order['items'] as List);
+
+    final updatedItems = allItems.map((it) {
+      if (it == item) {
+        // Replace drink in comments/details
+        final raw = (it['comments'] ?? it['details'] ?? '') as String;
+        final parts = raw.split(RegExp(r'\s*\|\s*'));
+        final updatedParts = parts.map((part) {
+          final trimmed = part.trim();
+          if (_drinkKeywords
+              .any((kw) => trimmed.toLowerCase().contains(kw.toLowerCase()))) {
+            if (trimmed.contains('1.5L')) return '$newDrink 1.5L';
+            if (trimmed.contains('2.5L')) return '$newDrink 2.5L';
+            return newDrink;
+          }
+          return trimmed;
+        }).toList();
+        final newDesc = updatedParts.join(' | ');
+        return {
+          ...it,
+          'comments': newDesc,
+          'details': newDesc,
+        };
+      }
+      return it;
+    }).toList();
+
+    final orderId = widget.order['id'] as int;
+    widget.onUpdate?.call(orderId, {'items': updatedItems});
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -107,26 +257,33 @@ class _OrderCardWidgetState extends State<OrderCardWidget> {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    _buildStatusBadge(widget.order['status']),
-                    const SizedBox(width: 8),
-                    InkWell(
-                      onTap: () => setState(() => _showActions = !_showActions),
-                      borderRadius: BorderRadius.circular(50),
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
+                    if (_elapsedTime.isNotEmpty) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 4),
                         decoration: BoxDecoration(
-                          color: Colors.grey.shade100,
-                          shape: BoxShape.circle,
+                          color: Colors.amber.shade100,
+                          borderRadius: BorderRadius.circular(4),
                         ),
-                        child: Icon(
-                          _showActions
-                              ? Icons.expand_less
-                              : Icons.keyboard_arrow_down,
-                          size: 24,
-                          color: Colors.black54,
+                        child: Row(
+                          children: [
+                            Icon(Icons.timer,
+                                size: 12, color: Colors.amber.shade900),
+                            const SizedBox(width: 4),
+                            Text(
+                              _elapsedTime,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.amber.shade900,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ),
+                      const SizedBox(width: 8),
+                    ],
+                    _buildStatusBadge(widget.order['status']),
                   ],
                 ),
               ],
@@ -159,6 +316,35 @@ class _OrderCardWidgetState extends State<OrderCardWidget> {
                             .toList()
                         : <String>[];
 
+                    const drinkKw = [
+                      'Coca Cola',
+                      'Coca',
+                      'Fanta',
+                      'Sprite',
+                      'Nordic',
+                      'Bebida',
+                      'Lata',
+                      '1.5L',
+                      '2.5L',
+                      'Con Gas',
+                      'Sin Gas',
+                      'Nectar',
+                      'Agua'
+                    ];
+                    final isPromo = _isPromoItem(item['item_name'] ?? '');
+
+                    // Separate drink from other lines
+                    String? drinkLine;
+                    final otherLines = <String>[];
+                    for (final line in descLines) {
+                      if (drinkKw.any((kw) =>
+                          line.toLowerCase().contains(kw.toLowerCase()))) {
+                        drinkLine = line;
+                      } else {
+                        otherLines.add(line);
+                      }
+                    }
+
                     return Container(
                       decoration: BoxDecoration(
                         border: Border(
@@ -174,69 +360,127 @@ class _OrderCardWidgetState extends State<OrderCardWidget> {
                         children: [
                           // Name and Details
                           Expanded(
-                            child: Text.rich(
-                              TextSpan(
-                                children: [
-                                  if (item['quantity'] != null &&
-                                      (item['quantity'] as int) > 1)
-                                    TextSpan(
-                                      text: '${item['quantity']}x ',
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w900,
-                                        fontSize: 16,
-                                        color: Colors.orange,
-                                      ),
-                                    ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Item name + non-drink detail lines
+                                Text.rich(
                                   TextSpan(
-                                    text: item['item_name'] ?? '',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w800,
-                                      fontSize: 15,
-                                      color: Colors.black87,
-                                    ),
-                                  ),
-                                  if (descLines.isNotEmpty)
-                                    const TextSpan(
-                                        text: '   '), // Space before details
-                                  ...List.generate(descLines.length, (index) {
-                                    final line = descLines[index];
-                                    Color lineColor = Colors.black54;
-                                    FontWeight weight = FontWeight.w500;
-
-                                    if (line.contains('Sin') ||
-                                        line.contains('Reemplazo') ||
-                                        line.contains('->')) {
-                                      lineColor = Colors.red;
-                                      weight = FontWeight.w600;
-                                    } else if (line.contains('+')) {
-                                      lineColor = const Color(0xFF2E7D32);
-                                      weight = FontWeight.w600;
-                                    }
-
-                                    return TextSpan(
-                                      children: [
+                                    children: [
+                                      if (item['quantity'] != null &&
+                                          (item['quantity'] as int) > 1)
                                         TextSpan(
-                                          text: line,
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            color: lineColor,
-                                            fontWeight: weight,
+                                          text: '${item['quantity']}x ',
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.w900,
+                                            fontSize: 16,
+                                            color: Colors.orange,
                                           ),
                                         ),
-                                        if (index < descLines.length - 1)
-                                          const TextSpan(
-                                            text: '  |  ',
-                                            style: TextStyle(
-                                              fontSize: 13,
-                                              color: Colors.grey,
-                                              fontWeight: FontWeight.bold,
+                                      TextSpan(
+                                        text: item['item_name'] ?? '',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w800,
+                                          fontSize: 15,
+                                          color: Colors.black87,
+                                        ),
+                                      ),
+                                      if (otherLines.isNotEmpty)
+                                        const TextSpan(text: '   '),
+                                      ...List.generate(otherLines.length,
+                                          (index) {
+                                        final line = otherLines[index];
+                                        Color lineColor = Colors.black54;
+                                        FontWeight weight = FontWeight.w500;
+                                        if (line.contains('Sin') ||
+                                            line.contains('Reemplazo') ||
+                                            line.contains('->') ||
+                                            line.contains('Excepci') ||
+                                            line.contains('Parmesano')) {
+                                          lineColor = Colors.red;
+                                          weight = FontWeight.w600;
+                                        } else if (line.contains('+')) {
+                                          lineColor = const Color(0xFF2E7D32);
+                                          weight = FontWeight.w600;
+                                        }
+                                        return TextSpan(
+                                          children: [
+                                            TextSpan(
+                                              text: line,
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                color: lineColor,
+                                                fontWeight: weight,
+                                              ),
+                                            ),
+                                            if (index < otherLines.length - 1)
+                                              const TextSpan(
+                                                text: '  |  ',
+                                                style: TextStyle(
+                                                  fontSize: 13,
+                                                  color: Colors.grey,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                          ],
+                                        );
+                                      }),
+                                    ],
+                                  ),
+                                ),
+                                // Drink line — tappable chip for promos
+                                if (drinkLine != null) ...[
+                                  const SizedBox(height: 4),
+                                  isPromo
+                                      ? InkWell(
+                                          onTap: () => _showDrinkPickerForItem(
+                                              item, drinkLine!),
+                                          borderRadius:
+                                              BorderRadius.circular(6),
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 8, vertical: 3),
+                                            decoration: BoxDecoration(
+                                              border: Border.all(
+                                                  color: Colors.blue.shade200),
+                                              borderRadius:
+                                                  BorderRadius.circular(6),
+                                              color: Colors.blue.shade50,
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Icon(Icons.local_drink_outlined,
+                                                    size: 13,
+                                                    color:
+                                                        Colors.blue.shade400),
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  drinkLine!,
+                                                  style: TextStyle(
+                                                    fontSize: 13,
+                                                    color: Colors.blue.shade700,
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 4),
+                                                Icon(Icons.edit_outlined,
+                                                    size: 12,
+                                                    color:
+                                                        Colors.blue.shade300),
+                                              ],
                                             ),
                                           ),
-                                      ],
-                                    );
-                                  }),
+                                        )
+                                      : Text(
+                                          drinkLine!,
+                                          style: const TextStyle(
+                                            fontSize: 13,
+                                            color: Colors.black54,
+                                          ),
+                                        ),
                                 ],
-                              ),
+                              ],
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -257,12 +501,28 @@ class _OrderCardWidgetState extends State<OrderCardWidget> {
                   // Total
                   Align(
                     alignment: Alignment.centerRight,
-                    child: Text(
-                      'Total: \$${_formatPrice(total as int)}',
-                      style: const TextStyle(
-                        color: Color(0xFF2ECC71), // Green
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
+                    child: InkWell(
+                      onTap: () => _showEditTotalDialog(),
+                      borderRadius: BorderRadius.circular(8),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.edit,
+                                size: 16, color: Colors.orange),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Total: \$${_formatPrice(total as int)}',
+                              style: const TextStyle(
+                                color: Colors.orange,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -357,7 +617,29 @@ class _OrderCardWidgetState extends State<OrderCardWidget> {
                 ],
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
+
+            // Botón ancho inferior para expandir/colapsar acciones
+            InkWell(
+              onTap: () => setState(() => _showActions = !_showActions),
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey.shade300, width: 1.0),
+                ),
+                child: Icon(
+                  _showActions
+                      ? Icons.keyboard_arrow_up
+                      : Icons.keyboard_arrow_down,
+                  color: Colors.black54,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
 
             AnimatedCrossFade(
               duration: const Duration(milliseconds: 300),
@@ -546,15 +828,19 @@ class _OrderCardWidgetState extends State<OrderCardWidget> {
 
   Widget _buildKitchenCard(BuildContext context) {
     final status = widget.order['status'] ?? 'NUEVO';
-    final items = widget.order['items'] as List? ?? [];
+    final items = (widget.order['items'] as List? ?? []).where((item) {
+      final name = (item['item_name']?.toString() ?? '').toLowerCase();
+      // Remover "Envio" y "Envío" con tilde, o similares, para que no salgan en cocina
+      return !name.contains('envio') && !name.contains('envío');
+    }).toList();
 
     final clientName = widget.order['client_name']?.toString().trim() ?? '';
     final hasClient = clientName.isNotEmpty &&
         clientName.toLowerCase() != 'sin nombre' &&
         clientName.toLowerCase() != 'null';
     final headerText = hasClient
-        ? 'Orden ${widget.order['order_number']} - $clientName'
-        : 'Orden ${widget.order['order_number']}';
+        ? '${widget.order['order_number']} - $clientName'
+        : '${widget.order['order_number']}';
 
     final isNew = status == 'NUEVO';
     final statusColor = AppColors.getStatusColor(status);
@@ -581,15 +867,50 @@ class _OrderCardWidgetState extends State<OrderCardWidget> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  headerText,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+                Expanded(
+                  child: Text(
+                    headerText,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ),
-                _buildStatusBadge(widget.order['status']),
+                const SizedBox(width: 8),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (_elapsedTime.isNotEmpty) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.amber.shade100,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.timer,
+                                size: 12, color: Colors.amber.shade900),
+                            const SizedBox(width: 4),
+                            Text(
+                              _elapsedTime,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.amber.shade900,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+                    _buildStatusBadge(widget.order['status']),
+                  ],
+                ),
               ],
             ),
             const Divider(height: 12),
@@ -637,7 +958,8 @@ class _OrderCardWidgetState extends State<OrderCardWidget> {
                 detailsList.addAll(subParts);
               }
 
-              // 4. FILTER DRINKS (For Kitchen View)
+              // 4. DRINKS — only shown in active orders view (not kitchen)
+              // Extract drink details into separate list for tappable rendering
               const drinkKeywords = [
                 'Coca Cola',
                 'Coca',
@@ -653,11 +975,17 @@ class _OrderCardWidgetState extends State<OrderCardWidget> {
                 'Nectar',
                 'Agua'
               ];
+
+              // Separate drink lines from regular details
+              final drinkDetails = <String>[];
               detailsList.removeWhere((line) {
-                // Check if line contains any keyword (case insensitive somewhat, or just direct match)
-                // Use strict containment to avoid false positives if possible, but drinks are usually distinct.
-                return drinkKeywords
+                final isDrink = drinkKeywords
                     .any((kw) => line.toLowerCase().contains(kw.toLowerCase()));
+                if (isDrink) {
+                  drinkDetails.add(line.trim());
+                }
+                // Always remove from detailsList (drinks rendered separately below)
+                return isDrink;
               });
 
               return Column(
@@ -721,12 +1049,14 @@ class _OrderCardWidgetState extends State<OrderCardWidget> {
                           // Color coding logic
                           if (text.contains('Sin') ||
                               text.contains('Reemplazo') ||
-                              text.contains('->')) {
+                              text.contains('->') ||
+                              text.contains('Excepci') ||
+                              text.contains('Parmesano')) {
                             color = Colors.red;
                             weight = FontWeight.bold;
                           } else if (text.contains('+') ||
                               text.startsWith('Extra')) {
-                            color = const Color(0xFF2E7D32); // Green
+                            color = const Color(0xFF2E7D32);
                             weight = FontWeight.bold;
                           }
 
@@ -742,6 +1072,68 @@ class _OrderCardWidgetState extends State<OrderCardWidget> {
                             ),
                           );
                         }),
+
+                        // DRINK DETAILS — shown as tappable button for promos
+                        if (!widget.isKitchen && drinkDetails.isNotEmpty)
+                          ...drinkDetails.map((drinkText) {
+                            final isPromo =
+                                _isPromoItem(item['item_name'] ?? '');
+                            if (isPromo) {
+                              return Padding(
+                                padding:
+                                    const EdgeInsets.only(top: 4, bottom: 4),
+                                child: InkWell(
+                                  onTap: () =>
+                                      _showDrinkPickerForItem(item, drinkText),
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      border: Border.all(
+                                          color: Colors.blue.shade200,
+                                          width: 1),
+                                      borderRadius: BorderRadius.circular(8),
+                                      color: Colors.blue.shade50,
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.local_drink_outlined,
+                                            size: 16,
+                                            color: Colors.blue.shade400),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          drinkText,
+                                          style: TextStyle(
+                                            fontSize: 18,
+                                            color: Colors.blue.shade700,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Icon(Icons.edit_outlined,
+                                            size: 14,
+                                            color: Colors.blue.shade400),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }
+                            // Non-promo items: show drink as normal text
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 4),
+                              child: Text(
+                                drinkText,
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  color: Colors.black87,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            );
+                          }),
                       ],
                     ),
                   ),
@@ -902,11 +1294,15 @@ class _OrderCardWidgetState extends State<OrderCardWidget> {
   }
 
   void _showClientData(BuildContext context) {
-    String name = widget.order['client_name'] ?? '';
-    String phone = widget.order['phone'] ?? '';
-    String address = widget.order['delivery_address'] ?? '';
+    String name = widget.order['client_name']?.toString() ?? '';
+    String phone = widget.order['phone']?.toString() ?? '';
+    String address = widget.order['delivery_address']?.toString() ?? '';
     String payMethod = widget.order['payment_method'] ?? 'Efectivo';
     String delType = widget.order['delivery_type'] ?? 'Local';
+
+    final nameCtrl = TextEditingController(text: name);
+    final phoneCtrl = TextEditingController(text: phone);
+    final addressCtrl = TextEditingController(text: address);
 
     showDialog(
       context: context,
@@ -919,18 +1315,60 @@ class _OrderCardWidgetState extends State<OrderCardWidget> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   TextField(
-                    decoration: const InputDecoration(labelText: 'Nombre'),
-                    controller: TextEditingController(text: name)
-                      ..selection = TextSelection.fromPosition(
-                          TextPosition(offset: name.length)),
+                    controller: nameCtrl,
+                    decoration: InputDecoration(
+                      labelText: 'Nombre',
+                      suffixIcon: IconButton(
+                        icon: const Icon(Icons.paste, size: 20),
+                        onPressed: () async {
+                          try {
+                            final data =
+                                await Clipboard.getData(Clipboard.kTextPlain);
+                            if (data?.text != null) {
+                              nameCtrl.text = data!.text!;
+                              setState(() => name = data.text!);
+                            }
+                          } catch (e) {
+                            if (ctx.mounted) {
+                              ScaffoldMessenger.of(ctx).showSnackBar(
+                                const SnackBar(
+                                    content: Text(
+                                        'Por HTTP usa Pegar de sistema (Mantén presionado -> Pegar o Ctrl+V)')),
+                              );
+                            }
+                          }
+                        },
+                      ),
+                    ),
                     onChanged: (v) => name = v,
                   ),
                   const SizedBox(height: 12),
                   TextField(
-                    decoration: const InputDecoration(labelText: 'Teléfono'),
-                    controller: TextEditingController(text: phone)
-                      ..selection = TextSelection.fromPosition(
-                          TextPosition(offset: phone.length)),
+                    controller: phoneCtrl,
+                    decoration: InputDecoration(
+                      labelText: 'Teléfono',
+                      suffixIcon: IconButton(
+                        icon: const Icon(Icons.paste, size: 20),
+                        onPressed: () async {
+                          try {
+                            final data =
+                                await Clipboard.getData(Clipboard.kTextPlain);
+                            if (data?.text != null) {
+                              phoneCtrl.text = data!.text!;
+                              setState(() => phone = data.text!);
+                            }
+                          } catch (e) {
+                            if (ctx.mounted) {
+                              ScaffoldMessenger.of(ctx).showSnackBar(
+                                const SnackBar(
+                                    content: Text(
+                                        'Por HTTP usa Pegar de sistema (Mantén presionado -> Pegar o Ctrl+V)')),
+                              );
+                            }
+                          }
+                        },
+                      ),
+                    ),
                     onChanged: (v) => phone = v,
                   ),
                   const SizedBox(height: 12),
@@ -960,10 +1398,31 @@ class _OrderCardWidgetState extends State<OrderCardWidget> {
                   const SizedBox(height: 12),
                   if (delType == 'Delivery')
                     TextField(
-                      decoration: const InputDecoration(labelText: 'Dirección'),
-                      controller: TextEditingController(text: address)
-                        ..selection = TextSelection.fromPosition(
-                            TextPosition(offset: address.length)),
+                      controller: addressCtrl,
+                      decoration: InputDecoration(
+                        labelText: 'Dirección',
+                        suffixIcon: IconButton(
+                          icon: const Icon(Icons.paste, size: 20),
+                          onPressed: () async {
+                            try {
+                              final data =
+                                  await Clipboard.getData(Clipboard.kTextPlain);
+                              if (data?.text != null) {
+                                addressCtrl.text = data!.text!;
+                                setState(() => address = data.text!);
+                              }
+                            } catch (e) {
+                              if (ctx.mounted) {
+                                ScaffoldMessenger.of(ctx).showSnackBar(
+                                  const SnackBar(
+                                      content: Text(
+                                          'Por HTTP usa Pegar de sistema (Mantén presionado -> Pegar o Ctrl+V)')),
+                                );
+                              }
+                            }
+                          },
+                        ),
+                      ),
                       onChanged: (v) => address = v,
                     ),
                   if (delType == 'Delivery') const SizedBox(height: 12),
@@ -1010,6 +1469,62 @@ class _OrderCardWidgetState extends State<OrderCardWidget> {
             ],
           );
         },
+      ),
+    );
+  }
+
+  void _showEditTotalDialog() {
+    int currentTotal = widget.order['total_amount'] ?? 0;
+    final txtController = TextEditingController(text: currentTotal.toString());
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Modificar Total'),
+        content: TextField(
+          controller: txtController,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+            labelText: 'Nuevo total (\$)',
+            prefixIcon: Icon(Icons.attach_money),
+          ),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              // En este caso "restaurar auto" implicaría probablemente recalcular el subtotal,
+              // pero como estamos en Active Orders, el backend ya calculó el total_price por ítem.
+              // Simulamos la suma de items aquí para "restaurar auto".
+              int autoTotal = 0;
+              final items = widget.order['items'] as List? ?? [];
+              for (var item in items) {
+                autoTotal += (item['total_price'] ?? 0) as int;
+              }
+              final updatedOrder = Map<String, dynamic>.from(widget.order);
+              updatedOrder['manual_total'] = autoTotal;
+              widget.onUpdate?.call(widget.order['id'] as int, updatedOrder);
+              Navigator.of(ctx).pop();
+            },
+            child: const Text('RESTAURAR AUTO'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final val = int.tryParse(txtController.text.trim());
+              if (val != null) {
+                final updatedOrder = Map<String, dynamic>.from(widget.order);
+                updatedOrder['manual_total'] = val;
+                widget.onUpdate?.call(widget.order['id'] as int, updatedOrder);
+                Navigator.of(ctx).pop();
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('APLICAR'),
+          ),
+        ],
       ),
     );
   }

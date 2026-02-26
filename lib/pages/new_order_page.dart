@@ -11,6 +11,7 @@ import '../blocs/orders/orders_bloc.dart';
 import '../config/theme.dart';
 import 'promo_options_page.dart';
 import 'promo2_options_page.dart';
+import 'package:flutter/services.dart';
 
 class NewOrderPage extends StatefulWidget {
   final Map<String, dynamic>? existingOrder;
@@ -218,6 +219,10 @@ class _NewOrderPageState extends State<NewOrderPage>
         'item_type': item['item_type'] ?? 'unknown',
         'unit_price': item['unit_price'] ?? 0,
         'quantity': item['quantity'] ?? 1,
+        'comments': item['comments'],
+        'details': item['comments'] ?? item['details'],
+        'removed_ingredients': item['removed_ingredients'],
+        'extras': item['extras'],
       });
     }
   }
@@ -497,116 +502,156 @@ class _NewOrderPageState extends State<NewOrderPage>
           final price =
               (promo['base_price'] ?? promo['promo_price'] ?? 17000) as int;
 
-          return StatefulBuilder(
-            builder: (ctx, setDialogState) {
-              return AlertDialog(
-                title: const Text(
-                  'Promo del Día',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
-                ),
-                content: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.orange.shade50,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.orange.shade100),
-                      ),
-                      child: Text(
-                        '$pizzaVariety F x2 + Palitos de Ajo + Bebida',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          color: AppColors.textPrimary,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
+          return Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 400),
+              child: StatefulBuilder(
+                builder: (ctx, setDialogState) {
+                  return AlertDialog(
+                    backgroundColor: Colors.white,
+                    surfaceTintColor: Colors.white,
+                    title: const Text(
+                      'Promo del Día',
+                      textAlign: TextAlign.center,
+                      style:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
                     ),
-
-                    const SizedBox(height: 24),
-
-                    // Button: Choose Drink
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton(
-                        onPressed: () async {
-                          final drink = await _showDrinkSelectionDialog();
-                          if (drink != null) {
-                            setDialogState(() {
-                              selectedDrink = drink;
-                            });
-                          }
-                        },
-                        child: Text(selectedDrink ?? 'Elegir Bebida'),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    // Button: More Options
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed: () async {
-                          Navigator.of(ctx).pop();
-                          final result = await Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => Promo2OptionsPage(
-                                  basePrice: price,
-                                  initialPizzaVariety: pizzaVariety),
+                    content: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.orange.shade100),
+                          ),
+                          child: Text(
+                            '$pizzaVariety F x2 + Palitos de Ajo + Bebida',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              color: AppColors.textPrimary,
+                              fontWeight: FontWeight.w500,
                             ),
-                          );
-
-                          if (result != null && result is Map) {
-                            final desc = result['description'] as String;
-                            final finalPrice = result['price'] as int;
-                            final removed = result['removed'] as List<String>?;
-                            final extras =
-                                result['extras'] as List<Map<String, dynamic>>?;
-
-                            _addToCart(
-                              'Promo del Día',
-                              finalPrice,
-                              'promo',
-                              details: desc,
-                              removedIngredients: removed,
-                              extras: extras,
-                            );
-                          }
-                        },
-                        icon: const Icon(Icons.settings),
-                        label: const Text('Más Opciones'),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Button: Add
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          Navigator.of(ctx).pop();
-                          final drink = selectedDrink ?? 'Coca Cola';
-                          final desc =
-                              '$pizzaVariety x2 | Palitos de ajo | $drink 1.5L';
-                          _addToCart('Promo del Día', price, 'promo',
-                              details: desc);
-                        },
-                        icon: const Icon(Icons.add_shopping_cart),
-                        label: const Text('Agregar'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.success,
-                          foregroundColor: Colors.white,
+                          ),
                         ),
-                      ),
+
+                        const SizedBox(height: 24),
+
+                        // Button: Choose Drink
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton(
+                            onPressed: () async {
+                              final drink = await _showDrinkSelectionDialog();
+                              if (drink != null) {
+                                setDialogState(() {
+                                  selectedDrink = drink;
+                                });
+                              }
+                            },
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: Text(
+                              selectedDrink ?? 'Elegir Bebida',
+                              style: const TextStyle(
+                                  fontSize: 16, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Button: More Options
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: () async {
+                              Navigator.of(ctx).pop();
+                              final result = await showDialog(
+                                context: context,
+                                builder: (context) => Promo2OptionsPage(
+                                    basePrice: price,
+                                    initialPizzaVariety: pizzaVariety),
+                              );
+
+                              if (result != null && result is Map) {
+                                final desc = result['description'] as String;
+                                final finalPrice = result['price'] as int;
+                                final removed =
+                                    result['removed'] as List<String>?;
+                                final extras = result['extras']
+                                    as List<Map<String, dynamic>>?;
+
+                                _addToCart(
+                                  'Promo del Día',
+                                  finalPrice,
+                                  'promo',
+                                  details: desc,
+                                  removedIngredients: removed,
+                                  extras: extras,
+                                );
+                              }
+                            },
+                            icon: const Icon(Icons.settings),
+                            label: const Text(
+                              'Más Opciones',
+                              style: TextStyle(
+                                  fontSize: 16, fontWeight: FontWeight.bold),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.primary,
+                              side: const BorderSide(color: AppColors.primary),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Button: Add
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              Navigator.of(ctx).pop();
+                              final drink = selectedDrink ?? 'Coca Cola';
+                              final desc =
+                                  '$pizzaVariety x2 | Palitos de ajo | $drink 1.5L';
+                              _addToCart('Promo del Día', price, 'promo',
+                                  details: desc);
+                            },
+                            icon: const Icon(Icons.add_shopping_cart),
+                            label: const Text(
+                              'Agregar',
+                              style: TextStyle(
+                                  fontSize: 16, fontWeight: FontWeight.bold),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.success,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-              );
-            },
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  );
+                },
+              ),
+            ),
           );
         }); // Close builder
   }
@@ -646,220 +691,245 @@ class _NewOrderPageState extends State<NewOrderPage>
 
     showDialog(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) {
-          return AlertDialog(
-            title: const Text(
-              'Promo 1',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 20,
-              ),
-            ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Más Pizzas',
-                      style:
-                          TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                  value: allowExtraPizzas,
-                  activeColor: AppColors.primary,
-                  onChanged: (val) {
-                    setDialogState(() {
-                      allowExtraPizzas = val;
-                      if (!val && selections.length > 2) {
-                        selections.removeRange(2, selections.length);
-                      }
-                    });
-                  },
+      builder: (ctx) => Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 400),
+          child: StatefulBuilder(
+            builder: (ctx, setDialogState) {
+              return AlertDialog(
+                title: const Text(
+                  'Promo 1',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 20,
+                  ),
                 ),
-                const SizedBox(height: 8),
-                ...ingredients.map(
-                  (ing) {
-                    final int count = selections.where((s) => s == ing).length;
-                    final isSelected = count > 0;
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ...ingredients.map(
+                      (ing) {
+                        final int count =
+                            selections.where((s) => s == ing).length;
+                        final isSelected = count > 0;
 
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: () {
-                            setDialogState(() {
-                              if (!allowExtraPizzas && selections.length >= 2) {
-                                // Si está limitado a 2, botamos el más antiguo para hacer espacio al nuevo
-                                selections.removeAt(0);
-                              }
-                              selections.add(ing);
-                            });
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: isSelected
-                                ? AppColors.primary
-                                : Colors.grey.shade200,
-                            foregroundColor: isSelected
-                                ? Colors.white
-                                : AppColors.textPrimary,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            elevation: isSelected ? 2 : 0,
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              if (count > 0)
-                                Padding(
-                                  padding: const EdgeInsets.only(right: 8),
-                                  child: Container(
-                                    width: 24,
-                                    height: 24,
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: Center(
-                                      child: Text(
-                                        '$count',
-                                        style: const TextStyle(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.bold,
-                                          color: AppColors.primary,
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: () {
+                                setDialogState(() {
+                                  if (!allowExtraPizzas &&
+                                      selections.length >= 2) {
+                                    // Si está limitado a 2, botamos el más antiguo para hacer espacio al nuevo
+                                    selections.removeAt(0);
+                                  }
+                                  selections.add(ing);
+                                });
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: isSelected
+                                    ? AppColors.primary
+                                    : Colors.grey.shade200,
+                                foregroundColor: isSelected
+                                    ? Colors.white
+                                    : AppColors.textPrimary,
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                elevation: isSelected ? 2 : 0,
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  if (count > 0)
+                                    Padding(
+                                      padding: const EdgeInsets.only(right: 8),
+                                      child: Container(
+                                        width: 24,
+                                        height: 24,
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                        ),
+                                        child: Center(
+                                          child: Text(
+                                            '$count',
+                                            style: const TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.bold,
+                                              color: AppColors.primary,
+                                            ),
+                                          ),
                                         ),
                                       ),
                                     ),
+                                  Text(
+                                    ing,
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
-                                ),
-                              Text(
-                                ing,
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                                ],
                               ),
-                            ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    const Divider(
+                        height: 24, thickness: 1, color: Color(0xFFEEEEEE)),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          setDialogState(() {
+                            allowExtraPizzas = !allowExtraPizzas;
+                            if (!allowExtraPizzas && selections.length > 2) {
+                              selections.removeRange(2, selections.length);
+                            }
+                          });
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: allowExtraPizzas
+                              ? AppColors.primary
+                              : Colors.grey.shade200,
+                          foregroundColor: allowExtraPizzas
+                              ? Colors.white
+                              : AppColors.textPrimary,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: allowExtraPizzas ? 2 : 0,
+                        ),
+                        child: const Text(
+                          'Más Pizzas',
+                          style: TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () async {
+                          final result = await showDialog(
+                            context: context,
+                            builder: (context) =>
+                                PromoOptionsPage(basePrice: basePrice),
+                          );
+                          if (result != null && mounted) {
+                            Navigator.of(context).pop(); // Close the dialog
+                            if (result is Map) {
+                              _addToCart(
+                                'Promo 1',
+                                result['price'] as int,
+                                'promo',
+                                details: result['description'] as String?,
+                                removedIngredients:
+                                    result['removed'] as List<String>?,
+                                extras: result['extras']
+                                    as List<Map<String, dynamic>>?,
+                              );
+                            } else {
+                              // Fallback just in case
+                              _addToCart(
+                                'Promo 1',
+                                basePrice,
+                                'promo',
+                                details: result.toString(),
+                              );
+                            }
+                          }
+                        },
+                        icon: const Icon(Icons.settings),
+                        label: const Text(
+                          'Más Opciones',
+                          style: TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.w600),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.primary,
+                          side: const BorderSide(color: AppColors.primary),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
                           ),
                         ),
                       ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () async {
-                      final result = await Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              PromoOptionsPage(basePrice: basePrice),
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: selections.length >= 2
+                            ? () {
+                                Navigator.of(ctx).pop();
+
+                                // Group by name for description
+                                final counts = <String, int>{};
+                                for (var s in selections) {
+                                  counts[s] = (counts[s] ?? 0) + 1;
+                                }
+
+                                final descParts = counts.entries.map((e) {
+                                  if (e.value > 1)
+                                    return '${e.key} x${e.value}';
+                                  return e.key;
+                                }).toList();
+
+                                final desc = descParts.join(' | ');
+
+                                int finalPrice = basePrice;
+                                if (selections.length > 2) {
+                                  finalPrice += (selections.length - 2) * 6000;
+                                }
+
+                                _addToCart('Promo 1', finalPrice, 'promo',
+                                    details: desc);
+                              }
+                            : null,
+                        icon: const Icon(Icons.add_shopping_cart),
+                        label: Text(
+                          'Agregar' +
+                              (selections.length > 2
+                                  ? ' (\$${basePrice + (selections.length - 2) * 6000})'
+                                  : ''),
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                      );
-                      if (result != null && mounted) {
-                        Navigator.of(context).pop(); // Close the dialog
-                        if (result is Map) {
-                          _addToCart(
-                            'Promo 1',
-                            result['price'] as int,
-                            'promo',
-                            details: result['description'] as String?,
-                            removedIngredients:
-                                result['removed'] as List<String>?,
-                            extras:
-                                result['extras'] as List<Map<String, dynamic>>?,
-                          );
-                        } else {
-                          // Fallback just in case
-                          _addToCart(
-                            'Promo 1',
-                            basePrice,
-                            'promo',
-                            details: result.toString(),
-                          );
-                        }
-                      }
-                    },
-                    icon: const Icon(Icons.settings),
-                    label: const Text(
-                      'Más Opciones',
-                      style:
-                          TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.primary,
-                      side: const BorderSide(color: AppColors.primary),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.success,
+                          foregroundColor: Colors.white,
+                          disabledBackgroundColor: Colors.grey.shade300,
+                          disabledForegroundColor: Colors.grey.shade500,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                 ),
-                const SizedBox(height: 8),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: selections.length >= 2
-                        ? () {
-                            Navigator.of(ctx).pop();
-
-                            // Group by name for description
-                            final counts = <String, int>{};
-                            for (var s in selections) {
-                              counts[s] = (counts[s] ?? 0) + 1;
-                            }
-
-                            final descParts = counts.entries.map((e) {
-                              if (e.value > 1) return '${e.key} x${e.value}';
-                              return e.key;
-                            }).toList();
-
-                            final desc = descParts.join(' | ');
-
-                            int finalPrice = basePrice;
-                            if (selections.length > 2) {
-                              finalPrice += (selections.length - 2) * 6000;
-                            }
-
-                            _addToCart('Promo 1', finalPrice, 'promo',
-                                details: desc);
-                          }
-                        : null,
-                    icon: const Icon(Icons.add_shopping_cart),
-                    label: Text(
-                      'Agregar Rápido' +
-                          (selections.length > 2
-                              ? ' (\$${basePrice + (selections.length - 2) * 6000})'
-                              : ''),
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.success,
-                      foregroundColor: Colors.white,
-                      disabledBackgroundColor: Colors.grey.shade300,
-                      disabledForegroundColor: Colors.grey.shade500,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            backgroundColor: Colors.white,
-            surfaceTintColor: Colors.white,
-          );
-        },
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16)),
+                backgroundColor: Colors.white,
+                surfaceTintColor: Colors.white,
+              );
+            },
+          ),
+        ),
       ),
     );
   }
@@ -946,12 +1016,10 @@ class _NewOrderPageState extends State<NewOrderPage>
                   child: OutlinedButton.icon(
                     onPressed: () async {
                       Navigator.of(ctx).pop();
-                      final result = await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              Promo2OptionsPage(basePrice: price),
-                        ),
+                      final result = await showDialog(
+                        context: context,
+                        builder: (context) =>
+                            Promo2OptionsPage(basePrice: price),
                       );
 
                       if (result != null && result is Map) {
@@ -1002,7 +1070,7 @@ class _NewOrderPageState extends State<NewOrderPage>
                     },
                     icon: const Icon(Icons.add_shopping_cart),
                     label: const Text(
-                      'Agregar Rápido',
+                      'Agregar',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -1036,20 +1104,33 @@ class _NewOrderPageState extends State<NewOrderPage>
 
     return showDialog<String>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Seleccionar Bebida'),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: ListView.builder(
-            shrinkWrap: true,
-            itemCount: state.drinks.length,
-            itemBuilder: (ctx, i) {
-              final drink = state.drinks[i];
-              return ListTile(
-                title: Text(drink['name']),
-                onTap: () => Navigator.of(ctx).pop(drink['name']),
-              );
-            },
+      builder: (ctx) => Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 400),
+          child: AlertDialog(
+            backgroundColor: Colors.white,
+            surfaceTintColor: Colors.white,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: const Text(
+              'Seleccionar Bebida',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: state.drinks.length,
+                itemBuilder: (ctx, i) {
+                  final drink = state.drinks[i];
+                  return ListTile(
+                    title: Text(drink['name'], textAlign: TextAlign.center),
+                    onTap: () => Navigator.of(ctx).pop(drink['name']),
+                  );
+                },
+              ),
+            ),
           ),
         ),
       ),
@@ -1208,6 +1289,10 @@ class _NewOrderPageState extends State<NewOrderPage>
   }
 
   void _showOrderSummary() {
+    final nameCtrl = TextEditingController(text: _clientName);
+    final phoneCtrl = TextEditingController(text: _phone);
+    final addressCtrl = TextEditingController(text: _address);
+
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
@@ -1272,23 +1357,57 @@ class _NewOrderPageState extends State<NewOrderPage>
                   Text('Datos', style: Theme.of(context).textTheme.titleLarge),
                   const SizedBox(height: 8),
                   TextField(
-                    controller: TextEditingController(text: _clientName)
-                      ..selection = TextSelection.fromPosition(
-                          TextPosition(offset: _clientName.length)),
-                    decoration: const InputDecoration(
+                    controller: nameCtrl,
+                    decoration: InputDecoration(
                       labelText: 'Nombre cliente',
-                      prefixIcon: Icon(Icons.person),
+                      prefixIcon: const Icon(Icons.person),
+                      suffixIcon: IconButton(
+                        icon: const Icon(Icons.paste, size: 20),
+                        onPressed: () async {
+                          try {
+                            final data =
+                                await Clipboard.getData(Clipboard.kTextPlain);
+                            if (data?.text != null) {
+                              nameCtrl.text = data!.text!;
+                              _clientName = data.text!;
+                            }
+                          } catch (e) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content: Text(
+                                      'Por HTTP usa Pegar de sistema (Mante presionado -> Pegar o Ctrl+V)')),
+                            );
+                          }
+                        },
+                      ),
                     ),
                     onChanged: (v) => _clientName = v,
                   ),
                   const SizedBox(height: 8),
                   TextField(
-                    controller: TextEditingController(text: _phone)
-                      ..selection = TextSelection.fromPosition(
-                          TextPosition(offset: _phone.length)),
-                    decoration: const InputDecoration(
+                    controller: phoneCtrl,
+                    decoration: InputDecoration(
                       labelText: 'Teléfono',
-                      prefixIcon: Icon(Icons.phone),
+                      prefixIcon: const Icon(Icons.phone),
+                      suffixIcon: IconButton(
+                        icon: const Icon(Icons.paste, size: 20),
+                        onPressed: () async {
+                          try {
+                            final data =
+                                await Clipboard.getData(Clipboard.kTextPlain);
+                            if (data?.text != null) {
+                              phoneCtrl.text = data!.text!;
+                              _phone = data.text!;
+                            }
+                          } catch (e) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content: Text(
+                                      'Por HTTP usa Pegar de sistema (Mante presionado -> Pegar o Ctrl+V)')),
+                            );
+                          }
+                        },
+                      ),
                     ),
                     onChanged: (v) => _phone = v,
                   ),
@@ -1323,20 +1442,43 @@ class _NewOrderPageState extends State<NewOrderPage>
 
                   if (_deliveryType == 'Delivery') ...[
                     TextField(
-                      controller: TextEditingController(text: _address)
-                        ..selection = TextSelection.fromPosition(
-                            TextPosition(offset: _address.length)),
+                      controller: addressCtrl,
                       decoration: InputDecoration(
                         labelText: 'Dirección',
                         prefixIcon: const Icon(Icons.location_on),
-                        suffixIcon: _isGeocoding
-                            ? Container(
+                        suffixIcon: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            if (_isGeocoding)
+                              Container(
                                 width: 20,
                                 height: 20,
-                                margin: const EdgeInsets.all(14),
+                                margin: const EdgeInsets.only(right: 8),
                                 child: const CircularProgressIndicator(
-                                    strokeWidth: 2))
-                            : null,
+                                    strokeWidth: 2),
+                              ),
+                            IconButton(
+                              icon: const Icon(Icons.paste, size: 20),
+                              onPressed: () async {
+                                try {
+                                  final data = await Clipboard.getData(
+                                      Clipboard.kTextPlain);
+                                  if (data?.text != null) {
+                                    addressCtrl.text = data!.text!;
+                                    _address = data.text!;
+                                  }
+                                } catch (e) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                        content: Text(
+                                            'Por HTTP usa Pegar de sistema (Mante presionado -> Pegar o Ctrl+V)')),
+                                  );
+                                }
+                              },
+                            ),
+                          ],
+                        ),
                       ),
                       onChanged: (v) {
                         _address = v;

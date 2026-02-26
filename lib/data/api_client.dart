@@ -4,7 +4,7 @@ import 'package:dio/dio.dart';
 class ApiClient {
   static const String baseUrl = String.fromEnvironment(
     'API_URL',
-    defaultValue: 'http://192.168.1.14:2000',
+    defaultValue: 'http://192.168.1.14:8080',
   );
   late final Dio _dio;
   String? _token;

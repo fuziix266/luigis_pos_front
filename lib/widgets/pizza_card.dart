@@ -71,134 +71,205 @@ class _PizzaCardState extends State<PizzaCard> {
     // Show dialog
     await showDialog(
       context: context,
-      builder: (ctx) => StatefulBuilder(builder: (ctx, setDialogState) {
-        List<dynamic> displayCandidates = candidates;
+      builder: (ctx) => Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 400),
+          child: StatefulBuilder(builder: (ctx, setDialogState) {
+            List<dynamic> displayCandidates = candidates;
 
-        if (isExceptionMode) {
-          displayCandidates = List.from(state.ingredients);
-        }
+            if (isExceptionMode) {
+              displayCandidates = List.from(state.ingredients);
+            }
 
-        if (searchQuery.isNotEmpty) {
-          displayCandidates = displayCandidates
-              .where((ing) => (ing['name'] as String)
-                  .toLowerCase()
-                  .contains(searchQuery.toLowerCase()))
-              .toList();
-        }
+            if (searchQuery.isNotEmpty) {
+              displayCandidates = displayCandidates
+                  .where((ing) => (ing['name'] as String)
+                      .toLowerCase()
+                      .contains(searchQuery.toLowerCase()))
+                  .toList();
+            }
 
-        displayCandidates.sort(
-            (a, b) => (a['name'] as String).compareTo(b['name'] as String));
+            displayCandidates.sort(
+                (a, b) => (a['name'] as String).compareTo(b['name'] as String));
 
-        return AlertDialog(
-          title: Text(_isClasica ? 'Elige tu ingrediente' : 'Arma tu pizza'),
-          content: SizedBox(
-            width: double.maxFinite,
-            height: 480,
-            child: Column(
-              children: [
-                if (isExceptionMode || _isArmaTuPizza) ...[
-                  TextField(
-                    decoration: const InputDecoration(
-                      hintText: 'Buscar ingrediente...',
-                      prefixIcon: Icon(Icons.search),
-                    ),
-                    onChanged: (val) {
-                      setDialogState(() {
-                        searchQuery = val;
-                      });
-                    },
-                  ),
-                  const SizedBox(height: 8),
-                ],
-                Expanded(
-                  child: ListView.builder(
-                    itemCount: displayCandidates.length,
-                    itemBuilder: (ctx, i) {
-                      final ingName = displayCandidates[i]['name'] as String;
-                      final int count =
-                          _customIngredients.where((s) => s == ingName).length;
-                      final isSelected = count > 0;
+            return AlertDialog(
+              backgroundColor: Colors.white,
+              surfaceTintColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
+              title: Text(
+                _isClasica ? 'Elige tu ingrediente' : 'Arma tu pizza',
+                textAlign: TextAlign.center,
+                style:
+                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+              ),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (isExceptionMode || _isArmaTuPizza) ...[
+                      TextField(
+                        decoration: const InputDecoration(
+                          hintText: 'Buscar ingrediente...',
+                          prefixIcon: Icon(Icons.search),
+                        ),
+                        onChanged: (val) {
+                          setDialogState(() {
+                            searchQuery = val;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+                    Flexible(
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: displayCandidates.length,
+                        itemBuilder: (ctx, i) {
+                          final ingName =
+                              displayCandidates[i]['name'] as String;
+                          final int count = _customIngredients
+                              .where((s) => s == ingName)
+                              .length;
+                          final isSelected = count > 0;
 
-                      if (!allowMultiple) {
-                        return CheckboxListTile(
-                          title: Text(ingName),
-                          value: isSelected,
-                          controlAffinity: ListTileControlAffinity.leading,
-                          onChanged: (val) {
-                            setDialogState(() {
-                              _customIngredients.clear();
-                              if (val == true) _customIngredients.add(ingName);
-                            });
-                            this.setState(
-                                () {}); // Update parent UI immediately
-                          },
-                        );
-                      } else {
-                        return ListTile(
-                          title: Text(ingName),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if (count > 0)
-                                IconButton(
-                                  icon: const Icon(Icons.remove_circle_outline,
-                                      color: Colors.red),
+                          if (!allowMultiple) {
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton(
                                   onPressed: () {
                                     setDialogState(() {
-                                      _customIngredients.remove(
-                                          ingName); // Removes first instance
+                                      _customIngredients.clear();
+                                      _customIngredients.add(ingName);
                                     });
-                                    this.setState(() {});
+                                    this.setState(
+                                        () {}); // Update parent UI immediately
                                   },
-                                ),
-                              if (count > 0)
-                                Text('$count',
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: isSelected
+                                        ? AppColors.primary
+                                        : Colors.grey.shade200,
+                                    foregroundColor: isSelected
+                                        ? Colors.white
+                                        : AppColors.textPrimary,
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 14),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    elevation: isSelected ? 2 : 0,
+                                  ),
+                                  child: Text(
+                                    ingName,
                                     style: const TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold)),
-                              IconButton(
-                                icon: const Icon(Icons.add_circle_outline,
-                                    color: Colors.green),
-                                onPressed: () {
-                                  setDialogState(() {
-                                    _customIngredients.add(ingName);
-                                  });
-                                  this.setState(() {});
-                                },
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
                               ),
-                            ],
+                            );
+                          } else {
+                            return ListTile(
+                              title: Text(ingName),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (count > 0)
+                                    IconButton(
+                                      icon: const Icon(
+                                          Icons.remove_circle_outline,
+                                          color: Colors.red),
+                                      onPressed: () {
+                                        setDialogState(() {
+                                          _customIngredients.remove(
+                                              ingName); // Removes first instance
+                                        });
+                                        this.setState(() {});
+                                      },
+                                    ),
+                                  if (count > 0)
+                                    Text('$count',
+                                        style: const TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold)),
+                                  IconButton(
+                                    icon: const Icon(Icons.add_circle_outline,
+                                        color: Colors.green),
+                                    onPressed: () {
+                                      setDialogState(() {
+                                        _customIngredients.add(ingName);
+                                      });
+                                      this.setState(() {});
+                                    },
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
+                        },
+                      ),
+                    ),
+                    if (_isClasica && !isExceptionMode) ...[
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            setDialogState(() {
+                              isExceptionMode = true;
+                            });
+                          },
+                          icon: const Icon(Icons.add_circle_outline),
+                          label: const Text(
+                            'Excepción',
+                            style: TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.w600),
                           ),
-                        );
-                      }
-                    },
-                  ),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.orange,
+                            side: const BorderSide(color: Colors.orange),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () => Navigator.of(ctx).pop(),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary.withOpacity(0.1),
+                          foregroundColor: AppColors.primary,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text(
+                          'Listo',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                if (_isClasica && !isExceptionMode) ...[
-                  const Divider(),
-                  TextButton.icon(
-                    onPressed: () {
-                      setDialogState(() {
-                        isExceptionMode = true;
-                      });
-                    },
-                    icon: const Icon(Icons.add_circle_outline,
-                        color: Colors.orange),
-                    label: const Text('EXCEPCIÓN',
-                        style: TextStyle(
-                            color: Colors.orange, fontWeight: FontWeight.bold)),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('LISTO'),
-            )
-          ],
-        );
-      }),
+              ),
+            );
+          }),
+        ),
+      ),
     );
   }
 
@@ -243,84 +314,115 @@ class _PizzaCardState extends State<PizzaCard> {
 
     showDialog(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) {
-          return AlertDialog(
-            title: const Text(
-              'Reemplazar ingrediente',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            content: SizedBox(
-              width: double.maxFinite,
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: replaceableIngredients.map((ing) {
-                    // Check if already replaced
-                    String? currentReplacement;
-                    for (final rep in _replacements) {
-                      if (rep.startsWith('$ing ->')) {
-                        currentReplacement = rep.split(' -> ')[1];
-                        break;
-                      }
-                    }
-
-                    return ListTile(
-                      title: Text(ing, textAlign: TextAlign.center),
-                      subtitle: currentReplacement != null
-                          ? Text(
-                              'Actual: $currentReplacement',
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                  color: Colors.red, fontSize: 12),
-                            )
-                          : null,
-                      onTap: () async {
-                        // Select new ingredient
-                        final newIngredient =
-                            await _selectReplacementIngredient();
-                        if (newIngredient != null && newIngredient != ing) {
-                          setDialogState(() {
-                            // Update internal state
-                            setState(() {
-                              // Remove existing replacement for this ingredient if any
-                              _replacements.removeWhere(
-                                  (rep) => rep.startsWith('$ing ->'));
-                              // Add new replacement
-                              _replacements.add('$ing -> $newIngredient');
-                            });
-                          });
-                        }
-                      },
-                      trailing: currentReplacement != null
-                          ? IconButton(
-                              icon: const Icon(Icons.clear, color: Colors.red),
-                              onPressed: () {
-                                setDialogState(() {
-                                  setState(() {
-                                    _replacements.removeWhere(
-                                        (rep) => rep.startsWith('$ing ->'));
-                                  });
-                                });
-                              },
-                            )
-                          : const Icon(Icons.arrow_forward_ios, size: 16),
-                    );
-                  }).toList(),
+      builder: (ctx) => Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 400),
+          child: StatefulBuilder(
+            builder: (ctx, setDialogState) {
+              return AlertDialog(
+                backgroundColor: Colors.white,
+                surfaceTintColor: Colors.white,
+                title: const Text(
+                  'Reemplazar ingrediente',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontWeight: FontWeight.bold),
                 ),
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(),
-                child: const Text('LISTO'),
-              ),
-            ],
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          );
-        },
+                content: SizedBox(
+                  width: double.maxFinite,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: SingleChildScrollView(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: replaceableIngredients.map((ing) {
+                              // Check if already replaced
+                              String? currentReplacement;
+                              for (final rep in _replacements) {
+                                if (rep.startsWith('$ing ->')) {
+                                  currentReplacement = rep.split(' -> ')[1];
+                                  break;
+                                }
+                              }
+
+                              return ListTile(
+                                title: Text(ing, textAlign: TextAlign.center),
+                                subtitle: currentReplacement != null
+                                    ? Text(
+                                        'Actual: $currentReplacement',
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(
+                                            color: Colors.red, fontSize: 12),
+                                      )
+                                    : null,
+                                onTap: () async {
+                                  // Select new ingredient
+                                  final newIngredient =
+                                      await _selectReplacementIngredient();
+                                  if (newIngredient != null &&
+                                      newIngredient != ing) {
+                                    setDialogState(() {
+                                      // Update internal state
+                                      setState(() {
+                                        // Remove existing replacement for this ingredient if any
+                                        _replacements.removeWhere(
+                                            (rep) => rep.startsWith('$ing ->'));
+                                        // Add new replacement
+                                        _replacements
+                                            .add('$ing -> $newIngredient');
+                                      });
+                                    });
+                                  }
+                                },
+                                trailing: currentReplacement != null
+                                    ? IconButton(
+                                        icon: const Icon(Icons.clear,
+                                            color: Colors.red),
+                                        onPressed: () {
+                                          setDialogState(() {
+                                            setState(() {
+                                              _replacements.removeWhere((rep) =>
+                                                  rep.startsWith('$ing ->'));
+                                            });
+                                          });
+                                        },
+                                      )
+                                    : const Icon(Icons.arrow_forward_ios,
+                                        size: 16),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () => Navigator.of(ctx).pop(),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary.withOpacity(0.1),
+                            foregroundColor: AppColors.primary,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text('Listo',
+                              style: TextStyle(
+                                  fontSize: 16, fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16)),
+              );
+            },
+          ),
+        ),
       ),
     );
   }
@@ -337,47 +439,80 @@ class _PizzaCardState extends State<PizzaCard> {
 
     return showDialog<String>(
       context: context,
-      builder: (ctx) => StatefulBuilder(builder: (ctx, setDialogState) {
-        return AlertDialog(
-          title: const Text('Seleccionar nuevo ingrediente'),
-          content: SizedBox(
-            width: double.maxFinite,
-            height: 450,
-            child: Column(
-              children: [
-                TextField(
-                  decoration: const InputDecoration(
-                    hintText: 'Buscar...',
-                    prefixIcon: Icon(Icons.search),
-                  ),
-                  onChanged: (val) {
-                    setDialogState(() {
-                      filtered = allIngredients
-                          .where((ing) => (ing['name'] as String)
-                              .toLowerCase()
-                              .contains(val.toLowerCase()))
-                          .toList();
-                    });
-                  },
+      builder: (ctx) => Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 400),
+          child: StatefulBuilder(
+            builder: (ctx, setDialogState) {
+              return AlertDialog(
+                backgroundColor: Colors.white,
+                surfaceTintColor: Colors.white,
+                title: const Text(
+                  'Seleccionar nuevo ingrediente',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontWeight: FontWeight.bold),
                 ),
-                const SizedBox(height: 10),
-                Expanded(
-                  child: ListView.builder(
-                    itemCount: filtered.length,
-                    itemBuilder: (ctx, i) {
-                      final name = filtered[i]['name'];
-                      return ListTile(
-                        title: Text(name),
-                        onTap: () => Navigator.of(ctx).pop(name),
-                      );
-                    },
+                content: SizedBox(
+                  width: double.maxFinite,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextField(
+                        decoration: const InputDecoration(
+                          hintText: 'Buscar...',
+                          prefixIcon: Icon(Icons.search),
+                        ),
+                        onChanged: (val) {
+                          setDialogState(() {
+                            filtered = allIngredients
+                                .where((ing) => (ing['name'] as String)
+                                    .toLowerCase()
+                                    .contains(val.toLowerCase()))
+                                .toList();
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 10),
+                      Flexible(
+                        child: ListView.builder(
+                          shrinkWrap: true,
+                          itemCount: filtered.length,
+                          itemBuilder: (ctx, i) {
+                            final name = filtered[i]['name'];
+                            return ListTile(
+                              title: Text(name),
+                              onTap: () => Navigator.of(ctx).pop(name),
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.of(ctx).pop(),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text('Cancelar',
+                              style: TextStyle(
+                                  fontSize: 16, fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ],
-            ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              );
+            },
           ),
-        );
-      }),
+        ),
+      ),
     );
   }
 
@@ -405,54 +540,83 @@ class _PizzaCardState extends State<PizzaCard> {
 
     showDialog(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) {
-          return AlertDialog(
-            title: Text(
-              'Eliminar Ingredientes - ${widget.pizza['name']}',
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            content: SizedBox(
-              width: double.maxFinite,
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: baseIngredients.map((ing) {
-                    final isRemoved = _removedIngredients.contains(ing);
-                    return CheckboxListTile(
-                      title: Text(ing),
-                      value: isRemoved,
-                      activeColor: Colors.red,
-                      controlAffinity: ListTileControlAffinity.leading,
-                      onChanged: (val) {
-                        setDialogState(() {
-                          if (val == true) {
-                            _removedIngredients.add(ing);
-                          } else {
-                            _removedIngredients.remove(ing);
-                          }
-                        });
-                        // Update parent widget to show red text changes immediately?
-                        // setState inside dialog only updates dialog.
-                        // We also want to update the PizzaCard background if we show "Sin X"
-                        this.setState(() {});
-                      },
-                    );
-                  }).toList(),
+      builder: (ctx) => Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 400),
+          child: StatefulBuilder(
+            builder: (ctx, setDialogState) {
+              return AlertDialog(
+                backgroundColor: Colors.white,
+                surfaceTintColor: Colors.white,
+                title: Text(
+                  'Eliminar Ingredientes - ${widget.pizza['name']}',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(),
-                child: const Text('LISTO'),
-              ),
-            ],
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          );
-        },
+                content: SizedBox(
+                  width: double.maxFinite,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: SingleChildScrollView(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: baseIngredients.map((ing) {
+                              final isRemoved =
+                                  _removedIngredients.contains(ing);
+                              return CheckboxListTile(
+                                title: Text(ing),
+                                value: isRemoved,
+                                activeColor: Colors.red,
+                                controlAffinity:
+                                    ListTileControlAffinity.leading,
+                                onChanged: (val) {
+                                  setDialogState(() {
+                                    if (val == true) {
+                                      _removedIngredients.add(ing);
+                                    } else {
+                                      _removedIngredients.remove(ing);
+                                    }
+                                  });
+                                  // Update parent widget to show red text changes immediately?
+                                  // setState inside dialog only updates dialog.
+                                  // We also want to update the PizzaCard background if we show "Sin X"
+                                  this.setState(() {});
+                                },
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () => Navigator.of(ctx).pop(),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary.withOpacity(0.1),
+                            foregroundColor: AppColors.primary,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text('Listo',
+                              style: TextStyle(
+                                  fontSize: 16, fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16)),
+              );
+            },
+          ),
+        ),
       ),
     );
   }

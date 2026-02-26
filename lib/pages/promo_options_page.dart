@@ -31,73 +31,110 @@ class _PromoOptionsPageState extends State<PromoOptionsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return Dialog(
       backgroundColor: Colors.grey.shade50,
-      appBar: AppBar(
-        title: const Text('Promo 1 - Selección'),
-        backgroundColor: Colors.white,
-        foregroundColor: AppColors.textPrimary,
-        elevation: 1,
-      ),
-      body: Column(
-        children: [
-          Container(
-            color: Colors.white,
-            child: SwitchListTile(
-              title: const Text('Más Pizzas',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-              value: _allowExtraPizzas,
-              activeColor: AppColors.primary,
-              onChanged: (val) {
-                setState(() {
-                  _allowExtraPizzas = val;
-                  if (!val && _pizzas.length > 2) {
-                    _pizzas.removeRange(2, _pizzas.length);
-                  }
-                });
-              },
+      surfaceTintColor: Colors.white,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      clipBehavior: Clip.antiAlias,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: 800,
+          maxHeight: MediaQuery.of(context).size.height * 0.9,
+        ),
+        child: Column(
+          children: [
+            Container(
+              color: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Promo 1 - Selección',
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ],
+              ),
             ),
-          ),
-          Expanded(
-            child: ListView.separated(
-              padding: const EdgeInsets.all(16),
-              itemCount: _pizzas.length + (_allowExtraPizzas ? 1 : 0),
-              separatorBuilder: (ctx, i) => const SizedBox(height: 16),
-              itemBuilder: (ctx, index) {
-                if (index == _pizzas.length) {
-                  return SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: () {
-                        setState(() {
-                          int nextId =
-                              _pizzas.isEmpty ? 1 : _pizzas.last.id + 1;
-                          _pizzas.add(PromoPizzaState(
-                              id: nextId, name: 'Pizza ${_pizzas.length + 1}'));
-                        });
-                      },
-                      icon: const Icon(Icons.add_circle_outline),
-                      label: const Text('Agregar Pizza'),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        side: const BorderSide(
-                            color: AppColors.primary, width: 2),
-                        foregroundColor: AppColors.primary,
-                        textStyle: const TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.bold),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    setState(() {
+                      _allowExtraPizzas = !_allowExtraPizzas;
+                      if (!_allowExtraPizzas && _pizzas.length > 2) {
+                        _pizzas.removeRange(2, _pizzas.length);
+                      }
+                    });
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _allowExtraPizzas
+                        ? AppColors.primary
+                        : Colors.grey.shade200,
+                    foregroundColor: _allowExtraPizzas
+                        ? Colors.white
+                        : AppColors.textPrimary,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: _allowExtraPizzas ? 2 : 0,
+                  ),
+                  child: const Text(
+                    'Más Pizzas',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+            ),
+            Expanded(
+              child: ListView.separated(
+                padding: const EdgeInsets.all(16),
+                itemCount: _pizzas.length + (_allowExtraPizzas ? 1 : 0),
+                separatorBuilder: (ctx, i) => const SizedBox(height: 16),
+                itemBuilder: (ctx, index) {
+                  if (index == _pizzas.length) {
+                    return SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          setState(() {
+                            int nextId =
+                                _pizzas.isEmpty ? 1 : _pizzas.last.id + 1;
+                            _pizzas.add(PromoPizzaState(
+                                id: nextId,
+                                name: 'Pizza ${_pizzas.length + 1}'));
+                          });
+                        },
+                        icon: const Icon(Icons.add_circle_outline),
+                        label: const Text('Agregar Pizza'),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          side: const BorderSide(
+                              color: AppColors.primary, width: 2),
+                          foregroundColor: AppColors.primary,
+                          textStyle: const TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.bold),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                       ),
-                    ),
-                  );
-                }
-                return _buildPizzaCard(_pizzas[index]);
-              },
+                    );
+                  }
+                  return _buildPizzaCard(_pizzas[index]);
+                },
+              ),
             ),
-          ),
-          _buildBottomBar(),
-        ],
+            _buildBottomBar(),
+          ],
+        ),
       ),
     );
   }
@@ -167,7 +204,7 @@ class _PromoOptionsPageState extends State<PromoOptionsPage> {
               // Show only the special selected ingredient
               SizedBox(
                 width: double.infinity,
-                child: OutlinedButton.icon(
+                child: ElevatedButton.icon(
                   onPressed: () {
                     setState(() {
                       pizza.isSpecialSelection = false;
@@ -178,16 +215,16 @@ class _PromoOptionsPageState extends State<PromoOptionsPage> {
                   label: Text(
                     pizza.selectedIngredient!,
                     style: const TextStyle(
-                        fontSize: 18, fontWeight: FontWeight.bold),
+                        fontSize: 16, fontWeight: FontWeight.w600),
                   ),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 20),
-                    backgroundColor: Colors.orange.shade50,
-                    foregroundColor: AppColors.primary,
-                    side: const BorderSide(color: AppColors.primary, width: 2),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(12),
                     ),
+                    elevation: 2,
                   ),
                 ),
               ),
@@ -199,34 +236,30 @@ class _PromoOptionsPageState extends State<PromoOptionsPage> {
                   padding: const EdgeInsets.only(bottom: 8),
                   child: SizedBox(
                     width: double.infinity,
-                    child: OutlinedButton(
+                    child: ElevatedButton(
                       onPressed: () {
                         setState(() {
                           pizza.selectedIngredient = ing;
                           pizza.isSpecialSelection = false;
                         });
                       },
-                      style: OutlinedButton.styleFrom(
-                        backgroundColor:
-                            isSelected ? Colors.grey.shade100 : Colors.white,
-                        foregroundColor: AppColors.textPrimary,
-                        side: BorderSide(
-                          color: isSelected
-                              ? AppColors.textPrimary
-                              : Colors.grey.shade300,
-                          width: isSelected ? 2 : 1,
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: isSelected
+                            ? AppColors.primary
+                            : Colors.grey.shade200,
+                        foregroundColor:
+                            isSelected ? Colors.white : AppColors.textPrimary,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(12),
                         ),
+                        elevation: isSelected ? 2 : 0,
                       ),
                       child: Text(
                         ing,
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 16,
-                          fontWeight:
-                              isSelected ? FontWeight.bold : FontWeight.normal,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
@@ -381,7 +414,8 @@ class _PromoOptionsPageState extends State<PromoOptionsPage> {
               final note = p.noteController.text.isNotEmpty
                   ? ' [${p.noteController.text}]'
                   : '';
-              return '${p.selectedIngredient}$extrasStr$exceptions$note';
+              final prefix = p.isSpecialSelection ? 'Excepci\u00f3n: ' : '';
+              return '$prefix${p.selectedIngredient}$extrasStr$exceptions$note';
             }).toList();
 
             final description = parts.join(' | ');
@@ -416,49 +450,71 @@ class _PromoOptionsPageState extends State<PromoOptionsPage> {
 
     showDialog(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) {
-          return AlertDialog(
-            title: Text(
-              'Eliminar Ingredientes - ${pizza.name}',
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: baseIngredients.map((ing) {
-                final isRemoved = pizza.exceptions.contains(ing);
-                return CheckboxListTile(
-                  title: Text(
-                    ing,
-                    textAlign: TextAlign.center,
-                  ),
-                  value: isRemoved,
-                  activeColor: Colors.red,
-                  onChanged: (val) {
-                    setDialogState(() {
-                      setState(() {
-                        if (val == true) {
-                          pizza.exceptions.add(ing);
-                        } else {
-                          pizza.exceptions.remove(ing);
-                        }
-                      });
-                    });
-                  },
-                );
-              }).toList(),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(),
-                child: const Text('LISTO'),
-              ),
-            ],
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          );
-        },
+      builder: (ctx) => Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 400),
+          child: StatefulBuilder(
+            builder: (ctx, setDialogState) {
+              return AlertDialog(
+                backgroundColor: Colors.white,
+                surfaceTintColor: Colors.white,
+                title: Text(
+                  'Eliminar Ingredientes - ${pizza.name}',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ...baseIngredients.map((ing) {
+                      final isRemoved = pizza.exceptions.contains(ing);
+                      return CheckboxListTile(
+                        title: Text(
+                          ing,
+                          textAlign: TextAlign.center,
+                        ),
+                        value: isRemoved,
+                        activeColor: Colors.red,
+                        onChanged: (val) {
+                          setDialogState(() {
+                            setState(() {
+                              if (val == true) {
+                                pizza.exceptions.add(ing);
+                              } else {
+                                pizza.exceptions.remove(ing);
+                              }
+                            });
+                          });
+                        },
+                      );
+                    }),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () => Navigator.of(ctx).pop(),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary.withOpacity(0.1),
+                          foregroundColor: AppColors.primary,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text('Listo',
+                            style: TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                  ],
+                ),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16)),
+              );
+            },
+          ),
+        ),
       ),
     );
   }
@@ -491,88 +547,107 @@ class _PromoOptionsPageState extends State<PromoOptionsPage> {
 
     showDialog(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) {
-          return AlertDialog(
-            title: const Text(
-              'Elegir Ingrediente Especial',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            content: SizedBox(
-              width: double.maxFinite,
-              height: 450, // Increased height for search field
-              child: Column(
-                children: [
-                  // Search Field
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: TextField(
-                      controller: searchController,
-                      decoration: InputDecoration(
-                        hintText: 'Buscar ingrediente...',
-                        prefixIcon: const Icon(Icons.search),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 12),
-                      ),
-                      onChanged: (value) {
-                        setDialogState(() {
-                          final query = value.toLowerCase();
-                          filteredIngredients = specialIngredients.where((ing) {
-                            final name = (ing['name'] as String).toLowerCase();
-                            return name.contains(query);
-                          }).toList();
-                        });
-                      },
-                    ),
-                  ),
-                  // List
-                  Expanded(
-                    child: filteredIngredients.isEmpty
-                        ? const Center(
-                            child: Text(
-                              'No se encontraron resultados',
-                              style: TextStyle(color: Colors.grey),
+      builder: (ctx) => Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 400),
+          child: StatefulBuilder(
+            builder: (ctx, setDialogState) {
+              return AlertDialog(
+                backgroundColor: Colors.white,
+                surfaceTintColor: Colors.white,
+                title: const Text(
+                  'Elegir Ingrediente Especial',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                content: SizedBox(
+                  width: double.maxFinite,
+                  height: 450, // Increased height for search field
+                  child: Column(
+                    children: [
+                      // Search Field
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: TextField(
+                          controller: searchController,
+                          decoration: InputDecoration(
+                            hintText: 'Buscar ingrediente...',
+                            prefixIcon: const Icon(Icons.search),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
                             ),
-                          )
-                        : ListView.builder(
-                            itemCount: filteredIngredients.length,
-                            itemBuilder: (ctx, i) {
-                              final ing = filteredIngredients[i];
-                              return ListTile(
-                                title: Text(
-                                  ing['name'],
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.w500),
-                                ),
-                                onTap: () {
-                                  setState(() {
-                                    pizza.selectedIngredient = ing['name'];
-                                    pizza.isSpecialSelection = true;
-                                  });
-                                  Navigator.of(ctx).pop();
-                                },
-                              );
-                            },
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 12),
                           ),
+                          onChanged: (value) {
+                            setDialogState(() {
+                              final query = value.toLowerCase();
+                              filteredIngredients =
+                                  specialIngredients.where((ing) {
+                                final name =
+                                    (ing['name'] as String).toLowerCase();
+                                return name.contains(query);
+                              }).toList();
+                            });
+                          },
+                        ),
+                      ),
+                      // List
+                      Expanded(
+                        child: filteredIngredients.isEmpty
+                            ? const Center(
+                                child: Text(
+                                  'No se encontraron resultados',
+                                  style: TextStyle(color: Colors.grey),
+                                ),
+                              )
+                            : ListView.builder(
+                                itemCount: filteredIngredients.length,
+                                itemBuilder: (ctx, i) {
+                                  final ing = filteredIngredients[i];
+                                  return ListTile(
+                                    title: Text(
+                                      ing['name'],
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.w500),
+                                    ),
+                                    onTap: () {
+                                      setState(() {
+                                        pizza.selectedIngredient = ing['name'];
+                                        pizza.isSpecialSelection = true;
+                                      });
+                                      Navigator.of(ctx).pop();
+                                    },
+                                  );
+                                },
+                              ),
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.of(ctx).pop(),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text('Cancelar',
+                              style: TextStyle(
+                                  fontSize: 16, fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(),
-                child: const Text('CANCELAR'),
-              ),
-            ],
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          );
-        },
+                ),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16)),
+              );
+            },
+          ),
+        ),
       ),
     );
   }

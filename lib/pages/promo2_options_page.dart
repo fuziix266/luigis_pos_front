@@ -110,122 +110,138 @@ class _Promo2OptionsPageState extends State<Promo2OptionsPage> {
       print('DEBUG PIZZA STRUCTURE: ${state.pizzas.first}');
     }
 
-    return Scaffold(
-      backgroundColor: Colors.grey.shade100,
-      appBar: AppBar(
-        title: Column(
-          children: const [
-            Text(
-              'PROMO 2 + EXTRAS',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-            ),
-            Text(
-              'CONFIGURANDO COMBO',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
-            ),
-          ],
+    return Dialog(
+      backgroundColor: Colors.grey.shade50,
+      surfaceTintColor: Colors.white,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      clipBehavior: Clip.antiAlias,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: 800,
+          maxHeight: MediaQuery.of(context).size.height * 0.9,
         ),
-        centerTitle: true,
-        backgroundColor: Colors.white,
-        elevation: 0,
-        foregroundColor: AppColors.textPrimary,
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                // Pizza Cards
-                ..._pizzas.map((pizza) => _buildPizzaCard(pizza)),
-
-                const SizedBox(height: 24),
-                // Acompañamientos
-                const Text(
-                  'ACOMPAÑAMIENTOS',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
+        child: Column(
+          children: [
+            Container(
+              color: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Text('PROMO 2 + EXTRAS',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.bold)),
+                        Text('CONFIGURANDO COMBO',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(fontSize: 12, color: Colors.grey)),
+                      ],
+                    ),
                   ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: const [
-                            Text(
-                              'PALITOS AJO -> PARMESANO',
-                              style: TextStyle(
-                                  fontWeight: FontWeight.bold, fontSize: 14),
-                            ),
-                            SizedBox(height: 4),
-                            Text(
-                              '+\$1.000',
-                              style: TextStyle(
-                                  color: AppColors.success,
-                                  fontWeight: FontWeight.bold),
-                            ),
-                          ],
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  // Pizza Cards
+                  ..._pizzas.map((pizza) => _buildPizzaCard(pizza)),
+
+                  const SizedBox(height: 24),
+                  // Acompañamientos
+                  const Center(
+                    child: Text(
+                      'ACOMPAÑAMIENTOS',
+                      style:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        setState(() {
+                          _upgradeToParmesan = !_upgradeToParmesan;
+                        });
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _upgradeToParmesan
+                            ? AppColors.primary
+                            : Colors.grey.shade200,
+                        foregroundColor: _upgradeToParmesan
+                            ? Colors.white
+                            : AppColors.textPrimary,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
                         ),
+                        elevation: _upgradeToParmesan ? 2 : 0,
                       ),
-                      Switch(
-                        value: _upgradeToParmesan,
-                        activeColor: AppColors.success,
-                        onChanged: (val) {
-                          setState(() {
-                            _upgradeToParmesan = val;
-                          });
-                        },
+                      child: const Text(
+                        'Palitos Parmesano (+\$1.000)',
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold),
                       ),
-                    ],
+                    ),
                   ),
-                ),
 
-                const SizedBox(height: 24),
-                // Bebida
-                const Text(
-                  'BEBIDA',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
+                  const SizedBox(height: 24),
+                  // Bebida
+                  const Center(
+                    child: Text(
+                      'BEBIDA',
+                      style:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      textAlign: TextAlign.center,
+                    ),
                   ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Text(
                           _selectedDrink,
+                          textAlign: TextAlign.center,
                           style: const TextStyle(
                               fontSize: 16, fontWeight: FontWeight.bold),
                         ),
-                      ),
-                      ElevatedButton(
-                        onPressed: _selectDrink,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.grey.shade200,
-                          foregroundColor: AppColors.textPrimary,
-                          elevation: 0,
+                        const SizedBox(height: 12),
+                        ElevatedButton(
+                          onPressed: _selectDrink,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.grey.shade200,
+                            foregroundColor: AppColors.textPrimary,
+                            elevation: 0,
+                          ),
+                          child: const Text('CAMBIAR'),
                         ),
-                        child: const Text('CAMBIAR'),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          _buildBottomBar(),
-        ],
+            _buildBottomBar(),
+          ],
+        ),
       ),
     );
   }
@@ -239,10 +255,11 @@ class _Promo2OptionsPageState extends State<Promo2OptionsPage> {
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Text(
               pizza.name.toUpperCase(),
+              textAlign: TextAlign.center,
               style: const TextStyle(
                 color: Colors.orange,
                 fontWeight: FontWeight.bold,
@@ -252,6 +269,7 @@ class _Promo2OptionsPageState extends State<Promo2OptionsPage> {
             const SizedBox(height: 8),
             Text(
               pizza.variety,
+              textAlign: TextAlign.center,
               style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -259,8 +277,10 @@ class _Promo2OptionsPageState extends State<Promo2OptionsPage> {
             ),
             const SizedBox(height: 16),
             // Action Buttons
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 8,
+              runSpacing: 8,
               children: [
                 _optionButton('EXTRAS', () => _showExtrasDialog(pizza)),
                 _optionButton('ELIMINAR', () => _showEliminarDialog(pizza)),
@@ -271,7 +291,8 @@ class _Promo2OptionsPageState extends State<Promo2OptionsPage> {
             // Display Results (Extras, Exceptions)
             if (pizza.exceptions.isNotEmpty) ...[
               const SizedBox(height: 8),
-              ...pizza.exceptions.map((ex) => Text('- $ex',
+              ...pizza.exceptions.map((ex) => Text('- $ex (Sin)',
+                  textAlign: TextAlign.center,
                   style: const TextStyle(
                       color: Colors.red, fontWeight: FontWeight.bold))),
             ],
@@ -279,6 +300,7 @@ class _Promo2OptionsPageState extends State<Promo2OptionsPage> {
             if (pizza.replacements.isNotEmpty) ...[
               const SizedBox(height: 8),
               ...pizza.replacements.map((rep) => Text(rep,
+                  textAlign: TextAlign.center,
                   style: const TextStyle(
                       color: Colors.red, fontWeight: FontWeight.bold))),
             ],
@@ -335,50 +357,11 @@ class _Promo2OptionsPageState extends State<Promo2OptionsPage> {
         border: Border(top: BorderSide(color: Colors.grey, width: 0.5)),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Text('RESUMEN PROMO 2',
-                          style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey,
-                              fontWeight: FontWeight.bold)),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.green.shade100,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: const Text('LISTO',
-                            style: TextStyle(
-                                fontSize: 10,
-                                color: Colors.green,
-                                fontWeight: FontWeight.bold)),
-                      ),
-                    ],
-                  ),
-                  const Text('TOTAL PROMO',
-                      style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey,
-                          fontWeight: FontWeight.bold)),
-                  Text('\$${_totalPrice}',
-                      style: const TextStyle(
-                          fontSize: 24, fontWeight: FontWeight.bold)),
-                ],
-              ),
-              const Text('IVA Incluido',
-                  style: TextStyle(fontSize: 12, color: Colors.grey)),
-            ],
-          ),
+          Text('\$$_totalPrice',
+              style:
+                  const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
           SizedBox(
             width: double.infinity,
@@ -387,7 +370,10 @@ class _Promo2OptionsPageState extends State<Promo2OptionsPage> {
                 // Generate result logic
                 final pizzaDescs = <String>[];
                 for (var p in _pizzas) {
-                  final sb = StringBuffer(p.variety);
+                  final sb = StringBuffer(
+                      p.variety != widget.initialPizzaVariety
+                          ? 'Excepci\u00f3n: ${p.variety}'
+                          : p.variety);
                   if (p.extras.isNotEmpty) {
                     final extrasMap = _groupExtras(p.extras);
                     final extrasStr = extrasMap.entries
@@ -396,13 +382,15 @@ class _Promo2OptionsPageState extends State<Promo2OptionsPage> {
                         .join(", ");
                     sb.write(' ($extrasStr)');
                   }
-                  if (p.exceptions.isNotEmpty)
+                  if (p.exceptions.isNotEmpty) {
                     sb.write(' (Sin: ${p.exceptions.join(", ")})');
+                  }
                   if (p.replacements.isNotEmpty) {
                     sb.write(' (${p.replacements.join(', ')})');
                   }
-                  if (p.noteController.text.isNotEmpty)
+                  if (p.noteController.text.isNotEmpty) {
                     sb.write(' [${p.noteController.text}]');
+                  }
                   pizzaDescs.add(sb.toString());
                 }
 
@@ -493,16 +481,30 @@ class _Promo2OptionsPageState extends State<Promo2OptionsPage> {
 
     final result = await showDialog<String>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Seleccionar Bebida'),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: ListView.builder(
-            shrinkWrap: true,
-            itemCount: state.drinks.length,
-            itemBuilder: (ctx, i) => ListTile(
-              title: Text(state.drinks[i]['name']),
-              onTap: () => Navigator.of(ctx).pop(state.drinks[i]['name']),
+      builder: (ctx) => Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 400),
+          child: AlertDialog(
+            backgroundColor: Colors.white,
+            surfaceTintColor: Colors.white,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: const Text(
+              'Seleccionar Bebida',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: state.drinks.length,
+                itemBuilder: (ctx, i) => ListTile(
+                  title: Text(state.drinks[i]['name'],
+                      textAlign: TextAlign.center),
+                  onTap: () => Navigator.of(ctx).pop(state.drinks[i]['name']),
+                ),
+              ),
             ),
           ),
         ),
@@ -546,9 +548,8 @@ class _Promo2OptionsPageState extends State<Promo2OptionsPage> {
     // Check if 'Napolitana' is the base one, maybe filter it?
     // Usually 'Exception' means changing the base pizza, so filtering the base 'Napolitana' makes sense if it's the default.
     final filteredPizzas = availablePizzas.where((p) {
-      final name = (p['name'] as String)
-          .trim(); // Case sensitive check with exact names from DB
-      return !['Napolitana', 'Clasica', 'Arma Tu Pizza'].contains(name);
+      final name = (p['name'] as String).trim();
+      return !['Clasica', 'Arma Tu Pizza'].contains(name);
     }).toList();
     filteredPizzas
         .sort((a, b) => (a['name'] as String).compareTo(b['name'] as String));
@@ -557,83 +558,89 @@ class _Promo2OptionsPageState extends State<Promo2OptionsPage> {
     List<dynamic> displayedPizzas = List.from(filteredPizzas);
 
     showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) {
-          return AlertDialog(
-            title: const Text(
-              'Cambiar Pizza',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            content: SizedBox(
-              width: double.maxFinite,
-              height: 450,
-              child: Column(
-                children: [
-                  TextField(
-                    decoration: const InputDecoration(
-                      hintText: 'Buscar pizza...',
-                      prefixIcon: Icon(Icons.search),
+        context: context,
+        builder: (ctx) => Center(
+                child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 400),
+              child: StatefulBuilder(
+                builder: (ctx, setDialogState) {
+                  return AlertDialog(
+                    backgroundColor: Colors.white,
+                    surfaceTintColor: Colors.white,
+                    title: const Text(
+                      'Cambiar Pizza',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontWeight: FontWeight.bold),
                     ),
-                    onChanged: (val) {
-                      setDialogState(() {
-                        displayedPizzas = filteredPizzas
-                            .where((p) => (p['name'] as String)
-                                .toLowerCase()
-                                .contains(val.toLowerCase()))
-                            .toList();
-                      });
-                    },
-                  ),
-                  const SizedBox(height: 10),
-                  Expanded(
-                    child: ListView.builder(
-                      itemCount: displayedPizzas.length,
-                      itemBuilder: (ctx, i) {
-                        final p = displayedPizzas[i];
-                        return ListTile(
-                          title: Text(p['name'], textAlign: TextAlign.center),
-                          onTap: () {
-                            setState(() {
-                              pizza.variety = p['name'];
-
-                              // Actualizar ingredientes base
-                              final ingreds =
-                                  p['ingredients'] as List<dynamic>?;
-                              if (ingreds != null) {
-                                pizza.baseIngredients = ingreds
-                                    .map((i) => i['name'].toString())
+                    content: SizedBox(
+                      width: double.maxFinite,
+                      height: 450,
+                      child: Column(
+                        children: [
+                          TextField(
+                            decoration: const InputDecoration(
+                              hintText: 'Buscar pizza...',
+                              prefixIcon: Icon(Icons.search),
+                            ),
+                            onChanged: (val) {
+                              setDialogState(() {
+                                displayedPizzas = filteredPizzas
+                                    .where((p) => (p['name'] as String)
+                                        .toLowerCase()
+                                        .contains(val.toLowerCase()))
                                     .toList();
-                              } else {
-                                pizza.baseIngredients = [];
-                              }
+                              });
+                            },
+                          ),
+                          const SizedBox(height: 10),
+                          Expanded(
+                            child: ListView.builder(
+                              itemCount: displayedPizzas.length,
+                              itemBuilder: (ctx, i) {
+                                final p = displayedPizzas[i];
+                                return ListTile(
+                                  title: Text(p['name'],
+                                      textAlign: TextAlign.center),
+                                  onTap: () {
+                                    setState(() {
+                                      pizza.variety = p['name'];
 
-                              // Resetear modificaciones
-                              pizza.replacements.clear();
-                              pizza.exceptions.clear();
-                            });
-                            Navigator.of(ctx).pop();
-                          },
-                        );
-                      },
+                                      // Actualizar ingredientes base
+                                      final ingreds =
+                                          p['ingredients'] as List<dynamic>?;
+                                      if (ingreds != null) {
+                                        pizza.baseIngredients = ingreds
+                                            .map((i) => i['name'].toString())
+                                            .toList();
+                                      } else {
+                                        pizza.baseIngredients = [];
+                                      }
+
+                                      // Resetear modificaciones
+                                      pizza.replacements.clear();
+                                      pizza.exceptions.clear();
+                                    });
+                                    Navigator.of(ctx).pop();
+                                  },
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.of(ctx).pop(),
+                        child: const Text('CANCELAR'),
+                      ),
+                    ],
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16)),
+                  );
+                },
               ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(),
-                child: const Text('CANCELAR'),
-              ),
-            ],
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          );
-        },
-      ),
-    );
+            )));
   }
 
   void _showEliminarDialog(Promo2PizzaState pizza) {
@@ -643,46 +650,79 @@ class _Promo2OptionsPageState extends State<Promo2OptionsPage> {
 
     showDialog(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) {
-          return AlertDialog(
-            title: Text(
-              'Eliminar Ingredientes - ${pizza.name}',
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: baseIngredients.map((ing) {
-                final isRemoved = pizza.exceptions.contains(ing);
-                return CheckboxListTile(
-                  title: Text(ing, textAlign: TextAlign.center),
-                  value: isRemoved,
-                  activeColor: Colors.red,
-                  onChanged: (val) {
-                    setDialogState(() {
-                      setState(() {
-                        if (val == true) {
-                          pizza.exceptions.add(ing);
-                        } else {
-                          pizza.exceptions.remove(ing);
-                        }
-                      });
-                    });
-                  },
-                );
-              }).toList(),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(),
-                child: const Text('LISTO'),
-              ),
-            ],
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          );
-        },
+      builder: (ctx) => Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 400),
+          child: StatefulBuilder(
+            builder: (ctx, setDialogState) {
+              return AlertDialog(
+                backgroundColor: Colors.white,
+                surfaceTintColor: Colors.white,
+                title: Text(
+                  'Eliminar Ingredientes - ${pizza.name}',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                content: SizedBox(
+                  width: double.maxFinite,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: SingleChildScrollView(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: baseIngredients.map((ing) {
+                              final isRemoved = pizza.exceptions.contains(ing);
+                              return CheckboxListTile(
+                                title: Text(ing, textAlign: TextAlign.center),
+                                value: isRemoved,
+                                activeColor: Colors.red,
+                                onChanged: (val) {
+                                  setDialogState(() {
+                                    setState(() {
+                                      if (val == true) {
+                                        pizza.exceptions.add(ing);
+                                      } else {
+                                        pizza.exceptions.remove(ing);
+                                      }
+                                    });
+                                  });
+                                },
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () => Navigator.of(ctx).pop(),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary.withOpacity(0.1),
+                            foregroundColor: AppColors.primary,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text('Listo',
+                              style: TextStyle(
+                                  fontSize: 16, fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              );
+            },
+          ),
+        ),
       ),
     );
   }
@@ -696,49 +736,93 @@ class _Promo2OptionsPageState extends State<Promo2OptionsPage> {
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text(
-          'Reemplazar ingrediente',
-          textAlign: TextAlign.center,
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: replaceableIngredients.map((ing) {
-            // Check if already replaced
-            String? currentReplacement;
-            for (final rep in pizza.replacements) {
-              if (rep.startsWith('$ing ->')) {
-                currentReplacement = rep.split(' -> ')[1];
-                break;
-              }
-            }
+      builder: (ctx) => Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 400),
+          child: AlertDialog(
+            backgroundColor: Colors.white,
+            surfaceTintColor: Colors.white,
+            title: const Text(
+              'Reemplazar ingrediente',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Flexible(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: replaceableIngredients.map((ing) {
+                          // Check if already replaced
+                          String? currentReplacement;
+                          for (final rep in pizza.replacements) {
+                            if (rep.startsWith('$ing ->')) {
+                              currentReplacement = rep.split(' -> ')[1];
+                              break;
+                            }
+                          }
 
-            return ListTile(
-              title: Text(ing, textAlign: TextAlign.center),
-              subtitle: currentReplacement != null
-                  ? Text(
-                      'Actual: $currentReplacement',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(color: Colors.red, fontSize: 12),
-                    )
-                  : null,
-              onTap: () async {
-                Navigator.of(ctx).pop();
-                // Select new ingredient
-                final newIngredient = await _selectReplacementIngredient();
-                if (newIngredient != null) {
-                  setState(() {
-                    // Remove existing replacement for this ingredient if any
-                    pizza.replacements
-                        .removeWhere((rep) => rep.startsWith('$ing ->'));
-                    // Add new replacement
-                    pizza.replacements.add('$ing -> $newIngredient');
-                  });
-                }
-              },
-            );
-          }).toList(),
+                          return ListTile(
+                            title: Text(ing, textAlign: TextAlign.center),
+                            subtitle: currentReplacement != null
+                                ? Text(
+                                    'Actual: $currentReplacement',
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(
+                                        color: Colors.red, fontSize: 12),
+                                  )
+                                : null,
+                            onTap: () async {
+                              Navigator.of(ctx).pop();
+                              // Select new ingredient
+                              final newIngredient =
+                                  await _selectReplacementIngredient();
+                              if (newIngredient != null) {
+                                setState(() {
+                                  // Remove existing replacement for this ingredient if any
+                                  pizza.replacements.removeWhere(
+                                      (rep) => rep.startsWith('$ing ->'));
+                                  // Add new replacement
+                                  pizza.replacements
+                                      .add('$ing -> $newIngredient');
+                                });
+                              }
+                            },
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.of(ctx).pop(),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary.withOpacity(0.1),
+                        foregroundColor: AppColors.primary,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text('Listo',
+                          style: TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+          ),
         ),
       ),
     );
@@ -757,47 +841,80 @@ class _Promo2OptionsPageState extends State<Promo2OptionsPage> {
 
     return showDialog<String>(
       context: context,
-      builder: (ctx) => StatefulBuilder(builder: (ctx, setDialogState) {
-        return AlertDialog(
-          title: const Text('Seleccionar nuevo ingrediente'),
-          content: SizedBox(
-            width: double.maxFinite,
-            height: 450,
-            child: Column(
-              children: [
-                TextField(
-                  decoration: const InputDecoration(
-                    hintText: 'Buscar...',
-                    prefixIcon: Icon(Icons.search),
-                  ),
-                  onChanged: (val) {
-                    setDialogState(() {
-                      filtered = allIngredients
-                          .where((ing) => (ing['name'] as String)
-                              .toLowerCase()
-                              .contains(val.toLowerCase()))
-                          .toList();
-                    });
-                  },
+      builder: (ctx) => Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 400),
+          child: StatefulBuilder(
+            builder: (ctx, setDialogState) {
+              return AlertDialog(
+                backgroundColor: Colors.white,
+                surfaceTintColor: Colors.white,
+                title: const Text(
+                  'Seleccionar nuevo ingrediente',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontWeight: FontWeight.bold),
                 ),
-                const SizedBox(height: 10),
-                Expanded(
-                  child: ListView.builder(
-                    itemCount: filtered.length,
-                    itemBuilder: (ctx, i) {
-                      final name = filtered[i]['name'];
-                      return ListTile(
-                        title: Text(name),
-                        onTap: () => Navigator.of(ctx).pop(name),
-                      );
-                    },
+                content: SizedBox(
+                  width: double.maxFinite,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextField(
+                        decoration: const InputDecoration(
+                          hintText: 'Buscar...',
+                          prefixIcon: Icon(Icons.search),
+                        ),
+                        onChanged: (val) {
+                          setDialogState(() {
+                            filtered = allIngredients
+                                .where((ing) => (ing['name'] as String)
+                                    .toLowerCase()
+                                    .contains(val.toLowerCase()))
+                                .toList();
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 10),
+                      Flexible(
+                        child: ListView.builder(
+                          shrinkWrap: true,
+                          itemCount: filtered.length,
+                          itemBuilder: (ctx, i) {
+                            final name = filtered[i]['name'];
+                            return ListTile(
+                              title: Text(name),
+                              onTap: () => Navigator.of(ctx).pop(name),
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.of(ctx).pop(),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text('Cancelar',
+                              style: TextStyle(
+                                  fontSize: 16, fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ],
-            ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              );
+            },
           ),
-        );
-      }),
+        ),
+      ),
     );
   }
 
