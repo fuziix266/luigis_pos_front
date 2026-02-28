@@ -57,7 +57,7 @@ class UpdateOrder extends OrdersEvent {
 }
 
 class StartPolling extends OrdersEvent {
-  final String viewType; // 'active', 'kitchen', 'delivery'
+  final String viewType; // 'active', 'kitchen', 'delivery', 'scheduled'
   StartPolling(this.viewType);
 }
 
@@ -302,6 +302,9 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
         case 'delivery':
           add(LoadDeliveryOrders());
           break;
+        case 'scheduled':
+          add(LoadScheduledOrders());
+          break;
         default:
           add(LoadActiveOrders());
       }
@@ -331,6 +334,9 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
         break;
       case 'active':
         add(LoadActiveOrders());
+        break;
+      case 'scheduled':
+        add(LoadScheduledOrders());
         break;
       default:
         // Do nothing for history or unknown views

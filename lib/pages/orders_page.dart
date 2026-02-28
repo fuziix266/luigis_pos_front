@@ -12,16 +12,36 @@ class OrdersPage extends StatefulWidget {
   State<OrdersPage> createState() => _OrdersPageState();
 }
 
-class _OrdersPageState extends State<OrdersPage> {
+class _OrdersPageState extends State<OrdersPage>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+
   @override
   void initState() {
     super.initState();
-    context.read<OrdersBloc>().add(LoadActiveOrders());
-    context.read<OrdersBloc>().add(StartPolling('active'));
+    _tabController = TabController(length: 2, vsync: this);
+    _loadData();
+
+    _tabController.addListener(() {
+      if (_tabController.indexIsChanging) {
+        _loadData();
+      }
+    });
+  }
+
+  void _loadData() {
+    if (_tabController.index == 0) {
+      context.read<OrdersBloc>().add(LoadActiveOrders());
+      context.read<OrdersBloc>().add(StartPolling('active'));
+    } else {
+      context.read<OrdersBloc>().add(LoadScheduledOrders());
+      context.read<OrdersBloc>().add(StartPolling('scheduled'));
+    }
   }
 
   @override
   void dispose() {
+    _tabController.dispose();
     super.dispose();
   }
 
@@ -36,99 +56,107 @@ class _OrdersPageState extends State<OrdersPage> {
             context.go('/');
           },
         ),
-        title: const Text('Pedidos Activos'),
+        title: const Text('Gestión de Pedidos'),
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: const [
+            Tab(text: 'ACTIVOS', icon: Icon(Icons.list_alt)),
+            Tab(text: 'PROGRAMADOS', icon: Icon(Icons.schedule)),
+          ],
+        ),
         actions: [
           IconButton(
-            tooltip: 'Ver pedidos programados',
-            icon: const Icon(Icons.schedule, color: Colors.white),
-            onPressed: () {
-              context.read<OrdersBloc>().add(StopPolling());
-              context.go('/orders/scheduled');
-            },
-          ),
-          IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: () => context.read<OrdersBloc>().add(LoadActiveOrders()),
+            onPressed: _loadData,
           ),
         ],
       ),
-      body: BlocBuilder<OrdersBloc, OrdersState>(
-        builder: (context, state) {
-          if (state is OrdersLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (state is OrdersError) {
-            return Center(child: Text(state.message));
-          }
-          if (state is OrdersLoaded) {
-            if (state.orders.isEmpty) {
-              return const Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.receipt_long, size: 64, color: Colors.grey),
-                    SizedBox(height: 12),
-                    Text(
-                      'Sin pedidos activos',
-                      style: TextStyle(fontSize: 18, color: Colors.grey),
-                    ),
-                  ],
-                ),
-              );
-            }
-
-            return LayoutBuilder(
-              builder: (context, constraints) {
-                // Calculate aspect ratio. Default to vertical if height is 0 to avoid division by zero.
-                final aspectRatio = constraints.maxHeight > 0
-                    ? constraints.maxWidth / constraints.maxHeight
-                    : 0.0;
-                // Horizontal layout only if aspect ratio is 16:9 (1.77) or wider
-                final isHorizontal = aspectRatio >= (16 / 9);
-
-                return ReorderableListView.builder(
-                  buildDefaultDragHandles: false,
-                  scrollDirection:
-                      isHorizontal ? Axis.horizontal : Axis.vertical,
-                  padding: const EdgeInsets.all(16),
-                  itemCount: state.orders.length,
-                  onReorder: (oldIndex, newIndex) {
-                    context
-                        .read<OrdersBloc>()
-                        .add(ReorderOrders(oldIndex, newIndex));
-                  },
-                  itemBuilder: (context, index) {
-                    final order = state.orders[index];
-                    return Container(
-                      key: ValueKey(order['id']),
-                      width: isHorizontal ? 380 : null,
-                      margin: EdgeInsets.only(
-                        bottom: isHorizontal ? 0 : 8,
-                        right: isHorizontal ? 8 : 0,
-                      ),
-                      // Asegurar alineación superior en horizontal
-                      alignment: Alignment.topCenter,
-                      child: OrderCardWidget(
-                        order: order,
-                        index: index,
-                        onStatusChange: _changeStatus,
-                        onDelete: _deleteOrder,
-                        onUpdate: _updateOrderData,
-                      ),
-                    );
-                  },
-                );
-              },
-            );
-          }
-          return const SizedBox.shrink();
-        },
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          _buildOrdersList(context, false),
+          _buildOrdersList(context, true),
+        ],
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.go('/new-order'),
         icon: const Icon(Icons.add),
         label: const Text('Nuevo'),
       ),
+    );
+  }
+
+  Widget _buildOrdersList(BuildContext context, bool isScheduled) {
+    return BlocBuilder<OrdersBloc, OrdersState>(
+      builder: (context, state) {
+        if (state is OrdersLoading) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (state is OrdersError) {
+          return Center(child: Text(state.message));
+        }
+        if (state is OrdersLoaded) {
+          if (state.orders.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(isScheduled ? Icons.schedule : Icons.receipt_long,
+                      size: 64, color: Colors.grey),
+                  const SizedBox(height: 12),
+                  Text(
+                    isScheduled
+                        ? 'No hay pedidos programados'
+                        : 'Sin pedidos activos',
+                    style: const TextStyle(fontSize: 18, color: Colors.grey),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              final aspectRatio = constraints.maxHeight > 0
+                  ? constraints.maxWidth / constraints.maxHeight
+                  : 0.0;
+              final isHorizontal = aspectRatio >= (16 / 9);
+
+              return ReorderableListView.builder(
+                buildDefaultDragHandles: false,
+                scrollDirection: isHorizontal ? Axis.horizontal : Axis.vertical,
+                padding: const EdgeInsets.all(16),
+                itemCount: state.orders.length,
+                onReorder: (oldIndex, newIndex) {
+                  context
+                      .read<OrdersBloc>()
+                      .add(ReorderOrders(oldIndex, newIndex));
+                },
+                itemBuilder: (context, index) {
+                  final order = state.orders[index];
+                  return Container(
+                    key: ValueKey(order['id']),
+                    width: isHorizontal ? 380 : null,
+                    margin: EdgeInsets.only(
+                      bottom: isHorizontal ? 0 : 8,
+                      right: isHorizontal ? 8 : 0,
+                    ),
+                    alignment: Alignment.topCenter,
+                    child: OrderCardWidget(
+                      order: order,
+                      index: index,
+                      onStatusChange: _changeStatus,
+                      onDelete: _deleteOrder,
+                      onUpdate: _updateOrderData,
+                    ),
+                  );
+                },
+              );
+            },
+          );
+        }
+        return const SizedBox.shrink();
+      },
     );
   }
 
