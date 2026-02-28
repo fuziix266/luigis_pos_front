@@ -13,12 +13,43 @@ class DeliveryPage extends StatefulWidget {
   State<DeliveryPage> createState() => _DeliveryPageState();
 }
 
-class _DeliveryPageState extends State<DeliveryPage> {
+class _DeliveryPageState extends State<DeliveryPage>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+
   @override
   void initState() {
     super.initState();
-    context.read<OrdersBloc>().add(LoadDeliveryOrders());
+    _tabController = TabController(length: 2, vsync: this);
+    _loadData();
     context.read<OrdersBloc>().add(StartPolling('delivery'));
+
+    _tabController.addListener(() {
+      if (_tabController.indexIsChanging) {
+        _loadData();
+      }
+    });
+  }
+
+  void _loadData() {
+    if (_tabController.index == 0) {
+      context.read<OrdersBloc>().add(LoadDeliveryOrders());
+    } else {
+      final now = DateTime.now();
+      final dateStr =
+          '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      context.read<OrdersBloc>().add(LoadHistory(
+            status: 'ENTREGADO',
+            deliveryType: 'Delivery',
+            date: dateStr,
+          ));
+    }
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   @override
@@ -32,50 +63,172 @@ class _DeliveryPageState extends State<DeliveryPage> {
             context.go('/');
           },
         ),
-        title: const Text('Delivery'),
+        title: const Text('Repartos'),
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: const [
+            Tab(text: 'ACTIVOS', icon: Icon(Icons.delivery_dining)),
+            Tab(text: 'HISTORIAL HOY', icon: Icon(Icons.history)),
+          ],
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: () =>
-                context.read<OrdersBloc>().add(LoadDeliveryOrders()),
+            onPressed: _loadData,
           ),
         ],
       ),
-      body: BlocBuilder<OrdersBloc, OrdersState>(
-        builder: (context, state) {
-          if (state is OrdersLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (state is OrdersError) {
-            return Center(child: Text(state.message));
-          }
-          if (state is OrdersLoaded) {
-            if (state.orders.isEmpty) {
-              return const Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.delivery_dining, size: 64, color: Colors.grey),
-                    SizedBox(height: 12),
-                    Text(
-                      'Sin deliveries activos',
-                      style: TextStyle(fontSize: 18, color: Colors.grey),
-                    ),
-                  ],
-                ),
-              );
-            }
-
-            return ListView.builder(
-              padding: const EdgeInsets.all(12),
-              itemCount: state.orders.length,
-              itemBuilder: (_, i) => _deliveryCard(state.orders[i]),
-            );
-          }
-          return const SizedBox.shrink();
-        },
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          _buildActiveDeliveries(),
+          _buildDailyHistory(),
+        ],
       ),
     );
+  }
+
+  Widget _buildActiveDeliveries() {
+    return BlocBuilder<OrdersBloc, OrdersState>(
+      builder: (context, state) {
+        if (state is OrdersLoading) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (state is OrdersError) {
+          return Center(child: Text(state.message));
+        }
+        if (state is OrdersLoaded) {
+          final orders = state.orders;
+          if (orders.isEmpty) {
+            return const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.delivery_dining, size: 64, color: Colors.grey),
+                  SizedBox(height: 12),
+                  Text(
+                    'Sin deliveries activos',
+                    style: TextStyle(fontSize: 18, color: Colors.grey),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(12),
+            itemCount: orders.length,
+            itemBuilder: (_, i) => _deliveryCard(orders[i]),
+          );
+        }
+        return const SizedBox.shrink();
+      },
+    );
+  }
+
+  Widget _buildDailyHistory() {
+    return BlocBuilder<OrdersBloc, OrdersState>(
+      builder: (context, state) {
+        if (state is OrdersLoading) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (state is OrdersError) {
+          return Center(child: Text(state.message));
+        }
+        if (state is OrdersLoaded) {
+          final orders = state.orders;
+          int totalDeliveryFees = 0;
+          for (var o in orders) {
+            totalDeliveryFees += (o['delivery_fee'] as num? ?? 0).toInt();
+          }
+
+          if (orders.isEmpty) {
+            return const Center(
+              child: Text('No hay repartos registrados hoy'),
+            );
+          }
+
+          return Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(20),
+                width: double.infinity,
+                color: AppColors.primary.withValues(alpha: 0.05),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _summaryItem('Total Repartos', '${orders.length}',
+                        Icons.local_shipping),
+                    _summaryItem('Ganancia Envíos',
+                        '\$${_formatPrice(totalDeliveryFees)}', Icons.payments,
+                        color: AppColors.success),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: ListView.builder(
+                  padding: const EdgeInsets.all(12),
+                  itemCount: orders.length,
+                  itemBuilder: (context, i) {
+                    final order = orders[i];
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      child: ListTile(
+                        leading: const CircleAvatar(
+                          backgroundColor: AppColors.success,
+                          child: Icon(Icons.check, color: Colors.white),
+                        ),
+                        title: Text(
+                          '#${order['order_number']} - ${order['client_name']}',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: Text(
+                            'Envío: \$${_formatPrice(order['delivery_fee'] ?? 0)}'),
+                        trailing: Text(
+                          _formatTime(order['time_delivered'] ??
+                              order['time_created'] ??
+                              ''),
+                          style: const TextStyle(color: Colors.grey),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          );
+        }
+        return const SizedBox.shrink();
+      },
+    );
+  }
+
+  Widget _summaryItem(String label, String value, IconData icon,
+      {Color color = AppColors.textPrimary}) {
+    return Column(
+      children: [
+        Icon(icon, size: 28, color: color),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: TextStyle(
+              fontSize: 22, fontWeight: FontWeight.bold, color: color),
+        ),
+        Text(label,
+            style:
+                const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+      ],
+    );
+  }
+
+  String _formatTime(String dateStr) {
+    if (dateStr.isEmpty) return '';
+    try {
+      final dt = DateTime.parse(dateStr);
+      return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+    } catch (_) {
+      return '';
+    }
   }
 
   Widget _deliveryCard(Map<String, dynamic> order) {
