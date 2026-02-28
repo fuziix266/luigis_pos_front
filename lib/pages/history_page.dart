@@ -397,6 +397,20 @@ class _HistoryPageState extends State<HistoryPage> {
                 ),
                 style: const TextStyle(fontSize: 12),
               ),
+              if (order['phone'] != null &&
+                  order['phone'].toString().isNotEmpty) ...[
+                const SizedBox(width: 12),
+                const Icon(
+                  Icons.phone,
+                  size: 14,
+                  color: AppColors.textSecondary,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  order['phone'].toString(),
+                  style: const TextStyle(fontSize: 12),
+                ),
+              ],
               if (order['delivery_type'] == 'Delivery' &&
                   order['delivery_address'] != null) ...[
                 const SizedBox(width: 12),
