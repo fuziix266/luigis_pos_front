@@ -13,27 +13,19 @@ class DeliveryPage extends StatefulWidget {
   State<DeliveryPage> createState() => _DeliveryPageState();
 }
 
-class _DeliveryPageState extends State<DeliveryPage>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _DeliveryPageState extends State<DeliveryPage> {
+  bool _showingHistory = false;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
     _loadData();
-    context.read<OrdersBloc>().add(StartPolling('delivery'));
-
-    _tabController.addListener(() {
-      if (_tabController.indexIsChanging) {
-        _loadData();
-      }
-    });
   }
 
   void _loadData() {
-    if (_tabController.index == 0) {
+    if (!_showingHistory) {
       context.read<OrdersBloc>().add(LoadDeliveryOrders());
+      context.read<OrdersBloc>().add(StartPolling('delivery'));
     } else {
       final now = DateTime.now();
       final dateStr =
@@ -43,12 +35,12 @@ class _DeliveryPageState extends State<DeliveryPage>
             deliveryType: 'Delivery',
             date: dateStr,
           ));
+      context.read<OrdersBloc>().add(StartPolling('delivery_history'));
     }
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
     super.dispose();
   }
 
@@ -59,32 +51,40 @@ class _DeliveryPageState extends State<DeliveryPage>
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
-            context.read<OrdersBloc>().add(StopPolling());
-            context.go('/');
+            if (_showingHistory) {
+              setState(() {
+                _showingHistory = false;
+              });
+              _loadData();
+            } else {
+              context.read<OrdersBloc>().add(StopPolling());
+              context.go('/');
+            }
           },
         ),
-        title: const Text('Repartos'),
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(text: 'ACTIVOS', icon: Icon(Icons.delivery_dining)),
-            Tab(text: 'HISTORIAL HOY', icon: Icon(Icons.history)),
-          ],
-        ),
+        title: Text(
+            _showingHistory ? 'Historial de Repartos' : 'Repartos Activos'),
         actions: [
           IconButton(
+            tooltip: _showingHistory
+                ? 'Ver Repartos Activos'
+                : 'Ver Historial de Hoy',
+            icon: Icon(_showingHistory ? Icons.delivery_dining : Icons.history),
+            onPressed: () {
+              setState(() {
+                _showingHistory = !_showingHistory;
+              });
+              _loadData();
+            },
+          ),
+          IconButton(
+            tooltip: 'Refrescar',
             icon: const Icon(Icons.refresh),
             onPressed: _loadData,
           ),
         ],
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildActiveDeliveries(),
-          _buildDailyHistory(),
-        ],
-      ),
+      body: _showingHistory ? _buildDailyHistory() : _buildActiveDeliveries(),
     );
   }
 

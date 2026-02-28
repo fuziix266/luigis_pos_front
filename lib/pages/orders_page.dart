@@ -12,25 +12,17 @@ class OrdersPage extends StatefulWidget {
   State<OrdersPage> createState() => _OrdersPageState();
 }
 
-class _OrdersPageState extends State<OrdersPage>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _OrdersPageState extends State<OrdersPage> {
+  bool _showingScheduled = false;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
     _loadData();
-
-    _tabController.addListener(() {
-      if (_tabController.indexIsChanging) {
-        _loadData();
-      }
-    });
   }
 
   void _loadData() {
-    if (_tabController.index == 0) {
+    if (!_showingScheduled) {
       context.read<OrdersBloc>().add(LoadActiveOrders());
       context.read<OrdersBloc>().add(StartPolling('active'));
     } else {
@@ -40,44 +32,47 @@ class _OrdersPageState extends State<OrdersPage>
   }
 
   @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
-            context.read<OrdersBloc>().add(StopPolling());
-            context.go('/');
+            if (_showingScheduled) {
+              setState(() {
+                _showingScheduled = false;
+              });
+              _loadData();
+            } else {
+              context.read<OrdersBloc>().add(StopPolling());
+              context.go('/');
+            }
           },
         ),
-        title: const Text('Gestión de Pedidos'),
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(text: 'ACTIVOS', icon: Icon(Icons.list_alt)),
-            Tab(text: 'PROGRAMADOS', icon: Icon(Icons.schedule)),
-          ],
-        ),
+        title: Text(_showingScheduled
+            ? 'Pedidos Programados'
+            : 'Gestión de Pedidos Activos'),
         actions: [
           IconButton(
+            tooltip: _showingScheduled
+                ? 'Ver Pedidos Activos'
+                : 'Ver Pedidos Programados',
+            icon: Icon(_showingScheduled ? Icons.list_alt : Icons.schedule),
+            onPressed: () {
+              setState(() {
+                _showingScheduled = !_showingScheduled;
+              });
+              _loadData();
+            },
+          ),
+          IconButton(
+            tooltip: 'Refrescar',
             icon: const Icon(Icons.refresh),
             onPressed: _loadData,
           ),
         ],
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildOrdersList(context, false),
-          _buildOrdersList(context, true),
-        ],
-      ),
+      body: _buildOrdersList(context, _showingScheduled),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.go('/new-order'),
         icon: const Icon(Icons.add),

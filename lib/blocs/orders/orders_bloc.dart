@@ -226,7 +226,7 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
     LoadHistory event,
     Emitter<OrdersState> emit,
   ) async {
-    emit(OrdersLoading());
+    if (state is! OrdersLoaded) emit(OrdersLoading());
     try {
       final data = await apiClient.getHistory(
         status: event.status,
@@ -301,6 +301,16 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
           break;
         case 'delivery':
           add(LoadDeliveryOrders());
+          break;
+        case 'delivery_history':
+          final now = DateTime.now();
+          final dateStr =
+              '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+          add(LoadHistory(
+            status: 'ENTREGADO',
+            deliveryType: 'Delivery',
+            date: dateStr,
+          ));
           break;
         case 'scheduled':
           add(LoadScheduledOrders());
