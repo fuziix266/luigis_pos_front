@@ -263,7 +263,7 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
       emit(OrderUpdated(order));
       _reloadCurrentView();
     } catch (e) {
-      emit(OrdersError('Error actualizando pedido: ${e.toString()}'));
+      emit(OrdersError('Error: ${e.toString()}'));
     }
   }
 
@@ -294,7 +294,7 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
   void _onStartPolling(StartPolling event, Emitter<OrdersState> emit) {
     _currentViewType = event.viewType;
     _pollTimer?.cancel();
-    _pollTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+    _pollTimer = Timer.periodic(const Duration(seconds: 10), (_) {
       switch (event.viewType) {
         case 'kitchen':
           add(LoadKitchenOrders());
@@ -307,7 +307,7 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
           final dateStr =
               '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
           add(LoadHistory(
-            status: 'ENTREGADO',
+            status: 'Todos',
             deliveryType: 'Delivery',
             date: dateStr,
           ));

@@ -195,9 +195,10 @@ class _OrderCardWidgetState extends State<OrderCardWidget> {
     final hasClient = clientName.isNotEmpty &&
         clientName.toLowerCase() != 'sin nombre' &&
         clientName.toLowerCase() != 'null';
-    final headerText = hasClient
-        ? 'Orden ${widget.order['order_number']} - $clientName'
-        : 'Orden ${widget.order['order_number']}';
+    final orderNum =
+        int.tryParse(widget.order['order_number']?.toString() ?? '') ??
+            widget.order['order_number'];
+    final headerText = hasClient ? '$orderNum - $clientName' : '$orderNum';
 
     final status = widget.order['status']?.toString() ?? '';
     final isNew = status == 'NUEVO';
@@ -206,13 +207,13 @@ class _OrderCardWidgetState extends State<OrderCardWidget> {
     return Card(
       elevation: 4,
       surfaceTintColor: isNew ? Colors.white : Colors.transparent,
-      color: isNew ? Colors.white : statusColor.withValues(alpha: 0.15),
+      color: isNew ? Colors.white : statusColor.withOpacity(0.15),
       margin: const EdgeInsets.only(bottom: 16),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
         side: isNew
             ? BorderSide(color: Colors.grey.shade300, width: 1.0)
-            : BorderSide(color: statusColor.withValues(alpha: 0.5), width: 1.5),
+            : BorderSide(color: statusColor.withOpacity(0.5), width: 1.5),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -308,6 +309,11 @@ class _OrderCardWidgetState extends State<OrderCardWidget> {
                           ],
                         ),
                       ),
+                      const SizedBox(width: 8),
+                    ],
+                    if (widget.order['is_paid'] == true) ...[
+                      const Icon(Icons.check_circle,
+                          color: Colors.green, size: 20),
                       const SizedBox(width: 8),
                     ],
                     _buildStatusBadge(widget.order['status']),
@@ -591,30 +597,42 @@ class _OrderCardWidgetState extends State<OrderCardWidget> {
                     ),
                     const SizedBox(height: 6),
                   ],
-                  if (widget.order['delivery_type'] != null ||
-                      widget.order['payment_method'] != null)
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 4,
-                      children: [
-                        if (widget.order['delivery_type'] != null &&
-                            widget.order['delivery_type'].toString().isNotEmpty)
-                          _buildMiniTag(
-                            Icons.local_shipping,
-                            widget.order['delivery_type'],
-                            Colors.orange,
-                          ),
-                        if (widget.order['payment_method'] != null &&
-                            widget.order['payment_method']
-                                .toString()
-                                .isNotEmpty)
-                          _buildMiniTag(
-                            Icons.payment,
-                            widget.order['payment_method'],
-                            Colors.green,
-                          ),
-                      ],
-                    ),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: [
+                      if (widget.order['delivery_type'] != null &&
+                          widget.order['delivery_type'].toString().isNotEmpty)
+                        _buildMiniTag(
+                          Icons.local_shipping,
+                          widget.order['delivery_type'],
+                          Colors.orange,
+                        ),
+                      if (widget.order['payment_method'] != null &&
+                          widget.order['payment_method'].toString().isNotEmpty)
+                        _buildMiniTag(
+                          Icons.payment,
+                          widget.order['payment_method'],
+                          Colors.green,
+                        ),
+                      InkWell(
+                        onTap: () {
+                          final currentPaid = widget.order['is_paid'] == true;
+                          widget.onUpdate?.call(widget.order['id'] as int,
+                              {'is_paid': !currentPaid});
+                        },
+                        child: _buildMiniTag(
+                          widget.order['is_paid'] == true
+                              ? Icons.check_box
+                              : Icons.check_box_outline_blank,
+                          'PAGADO',
+                          widget.order['is_paid'] == true
+                              ? Colors.green
+                              : Colors.grey,
+                        ),
+                      ),
+                    ],
+                  ),
                   if (widget.order['delivery_type'] == 'Delivery' &&
                       widget.order['delivery_address'] != null &&
                       widget.order['delivery_address']
@@ -865,9 +883,10 @@ class _OrderCardWidgetState extends State<OrderCardWidget> {
     final hasClient = clientName.isNotEmpty &&
         clientName.toLowerCase() != 'sin nombre' &&
         clientName.toLowerCase() != 'null';
-    final headerText = hasClient
-        ? '${widget.order['order_number']} - $clientName'
-        : '${widget.order['order_number']}';
+    final orderNum =
+        int.tryParse(widget.order['order_number']?.toString() ?? '') ??
+            widget.order['order_number'];
+    final headerText = hasClient ? '$orderNum - $clientName' : '$orderNum';
 
     final isNew = status == 'NUEVO';
     final statusColor = AppColors.getStatusColor(status);
@@ -876,12 +895,12 @@ class _OrderCardWidgetState extends State<OrderCardWidget> {
       margin: EdgeInsets.zero,
       elevation: 2,
       surfaceTintColor: isNew ? Colors.white : Colors.transparent,
-      color: isNew ? Colors.white : statusColor.withValues(alpha: 0.15),
+      color: isNew ? Colors.white : statusColor.withOpacity(0.15),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: isNew
             ? const BorderSide(color: Colors.transparent, width: 0)
-            : BorderSide(color: statusColor.withValues(alpha: 0.5), width: 1.5),
+            : BorderSide(color: statusColor.withOpacity(0.5), width: 1.5),
       ),
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -890,56 +909,69 @@ class _OrderCardWidgetState extends State<OrderCardWidget> {
           mainAxisSize: MainAxisSize.min,
           children: [
             // Header
-            // 1. Header: Orden # (Time)
+            // 1. Header: Number and Timer Row
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Expanded(
-                  child: Text(
-                    headerText,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                Text(
+                  '$orderNum',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
                   ),
                 ),
-                const SizedBox(width: 8),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (_elapsedTime.isNotEmpty) ...[
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.amber.shade100,
-                          borderRadius: BorderRadius.circular(4),
+                if (_elapsedTime.isNotEmpty)
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.shade100,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.timer,
+                            size: 12, color: Colors.amber.shade900),
+                        const SizedBox(width: 4),
+                        Text(
+                          _elapsedTime,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.amber.shade900,
+                          ),
                         ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.timer,
-                                size: 12, color: Colors.amber.shade900),
-                            const SizedBox(width: 4),
-                            Text(
-                              _elapsedTime,
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.amber.shade900,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                    ],
-                    _buildStatusBadge(widget.order['status']),
-                  ],
-                ),
+                      ],
+                    ),
+                  ),
               ],
             ),
+
+            // 2. Client and Status Row
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  if (hasClient)
+                    Expanded(
+                      child: Text(
+                        clientName,
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  // Mover la etiqueta de estado aquí
+                  _buildStatusBadge(widget.order['status']),
+                ],
+              ),
+            ),
+
             const Divider(height: 12),
 
             // Items
@@ -1177,19 +1209,19 @@ class _OrderCardWidgetState extends State<OrderCardWidget> {
             // Status Buttons Row
             Row(
               children: [
-                _kitchenStatusButton('Preparando', 'PREP', status),
-                const SizedBox(width: 6),
-                _kitchenStatusButton('Armado', 'ARMADO', status),
-                const SizedBox(width: 6),
-                _kitchenStatusButton('Horno', 'HORNO', status),
+                _kitchenStatusButton('P', 'PREP', status),
+                const SizedBox(width: 8),
+                _kitchenStatusButton('A', 'ARMADO', status),
+                const SizedBox(width: 8),
+                _kitchenStatusButton('H', 'HORNO', status),
               ],
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
 
-            // Listo Button
-            // Listo Button with confirmation
+            // Listo Button - Adapted to full width
             SizedBox(
               width: double.infinity,
+              height: 44,
               child: ElevatedButton(
                 onPressed: () {
                   if (_showConfirmation) {
@@ -1198,7 +1230,6 @@ class _OrderCardWidgetState extends State<OrderCardWidget> {
                     setState(() => _showConfirmation = false);
                   } else {
                     setState(() => _showConfirmation = true);
-                    // Auto-cancel after 3 seconds
                     Future.delayed(const Duration(seconds: 3), () {
                       if (mounted && _showConfirmation) {
                         setState(() => _showConfirmation = false);
@@ -1217,26 +1248,22 @@ class _OrderCardWidgetState extends State<OrderCardWidget> {
                       : (status == 'LISTO'
                           ? Colors.white
                           : const Color(0xFF2E7D32)),
-                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  padding: EdgeInsets.zero,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(4),
                   ),
                   elevation: 0,
                 ),
                 child: Text(
-                  _showConfirmation ? '¿CONFIRMAR LISTO?' : 'Listo',
-                  style: TextStyle(
-                    fontSize: 14,
+                  _showConfirmation ? 'CONFIRMAR' : 'Listo',
+                  style: const TextStyle(
+                    fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: _showConfirmation
-                        ? Colors.white
-                        : (status == 'LISTO'
-                            ? Colors.white
-                            : const Color(0xFF2E7D32)),
                   ),
                 ),
               ),
             ),
+            const SizedBox(height: 12),
           ],
         ),
       ),
@@ -1279,24 +1306,28 @@ class _OrderCardWidgetState extends State<OrderCardWidget> {
     }
 
     return Expanded(
-      child: ElevatedButton(
-        onPressed: () {
-          widget.onStatusChange?.call(widget.order['id'] as int, targetStatus);
-        },
-        style: ElevatedButton.styleFrom(
-          backgroundColor: bgColor,
-          foregroundColor: textColor,
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
+      child: SizedBox(
+        height: 50,
+        child: ElevatedButton(
+          onPressed: () {
+            widget.onStatusChange
+                ?.call(widget.order['id'] as int, targetStatus);
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: bgColor,
+            foregroundColor: textColor,
+            padding: EdgeInsets.zero,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(4),
+            ),
+            elevation: 0,
           ),
-          elevation: 0,
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
+          child: Text(
+            label,
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w900,
+            ),
           ),
         ),
       ),

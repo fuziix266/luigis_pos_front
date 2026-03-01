@@ -131,7 +131,7 @@ class _HistoryPageState extends State<HistoryPage> {
                     horizontal: 16,
                     vertical: 10,
                   ),
-                  color: AppColors.primary.withValues(alpha: 0.05),
+                  color: AppColors.primary.withOpacity(0.05),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
@@ -221,7 +221,7 @@ class _HistoryPageState extends State<HistoryPage> {
       padding: const EdgeInsets.symmetric(horizontal: 10),
       height: 36,
       decoration: BoxDecoration(
-        color: AppColors.primary.withValues(alpha: 0.1),
+        color: AppColors.primary.withOpacity(0.1),
         borderRadius: BorderRadius.circular(8),
       ),
       child: DropdownButtonHideUnderline(
@@ -290,7 +290,7 @@ class _HistoryPageState extends State<HistoryPage> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         leading: CircleAvatar(
-          backgroundColor: statusColor.withValues(alpha: 0.1),
+          backgroundColor: statusColor.withOpacity(0.1),
           child: Icon(
             isDeleted ? Icons.cancel : Icons.check_circle,
             color: statusColor,
@@ -303,7 +303,7 @@ class _HistoryPageState extends State<HistoryPage> {
               child: Row(
                 children: [
                   Text(
-                    '#${order['order_number']}',
+                    '${int.tryParse(order['order_number']?.toString() ?? '') ?? order['order_number']}',
                     style: const TextStyle(fontWeight: FontWeight.w700),
                   ),
                   const SizedBox(width: 8),
@@ -338,7 +338,7 @@ class _HistoryPageState extends State<HistoryPage> {
                         builder: (ctx) => AlertDialog(
                           title: const Text('Eliminar Pedido'),
                           content: Text(
-                              '¿Estás seguro de que deseas marcar el pedido #${order['order_number']} como eliminado?'),
+                              '¿Estás seguro de que deseas marcar el pedido ${int.tryParse(order['order_number']?.toString() ?? '') ?? order['order_number']} como eliminado?'),
                           actions: [
                             TextButton(
                               onPressed: () => Navigator.pop(ctx),
@@ -587,9 +587,9 @@ class _HistoryPageState extends State<HistoryPage> {
       margin: const EdgeInsets.only(right: 8, bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: AppColors.primary.withValues(alpha: 0.1),
+        color: AppColors.primary.withOpacity(0.1),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+        border: Border.all(color: AppColors.primary.withOpacity(0.2)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

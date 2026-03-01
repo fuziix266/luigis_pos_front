@@ -645,7 +645,7 @@ class _PizzaCardState extends State<PizzaCard> {
         border: Border.all(color: Colors.grey.shade300, width: 1),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
+            color: Colors.black.withOpacity(0.1),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -703,8 +703,8 @@ class _PizzaCardState extends State<PizzaCard> {
                               boxShadow: isSelected
                                   ? [
                                       BoxShadow(
-                                        color: AppColors.success
-                                            .withValues(alpha: 0.3),
+                                        color:
+                                            AppColors.success.withOpacity(0.3),
                                         blurRadius: 4,
                                         offset: const Offset(0, 2),
                                       )

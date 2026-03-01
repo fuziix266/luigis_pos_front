@@ -91,7 +91,8 @@ class _OrdersPageState extends State<OrdersPage> {
           return Center(child: Text(state.message));
         }
         if (state is OrdersLoaded) {
-          if (state.orders.isEmpty) {
+          final orders = state.orders;
+          if (orders.isEmpty) {
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -121,14 +122,14 @@ class _OrdersPageState extends State<OrdersPage> {
                 buildDefaultDragHandles: false,
                 scrollDirection: isHorizontal ? Axis.horizontal : Axis.vertical,
                 padding: const EdgeInsets.all(16),
-                itemCount: state.orders.length,
+                itemCount: orders.length,
                 onReorder: (oldIndex, newIndex) {
                   context
                       .read<OrdersBloc>()
                       .add(ReorderOrders(oldIndex, newIndex));
                 },
                 itemBuilder: (context, index) {
-                  final order = state.orders[index];
+                  final order = orders[index];
                   return Container(
                     key: ValueKey(order['id']),
                     width: isHorizontal ? 380 : null,

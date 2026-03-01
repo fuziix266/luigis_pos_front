@@ -251,7 +251,8 @@ class _NewOrderPageState extends State<NewOrderPage>
         if (state is OrderCreated) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Pedido #${state.order['order_number']} creado'),
+              content: Text(
+                  'Pedido ${int.tryParse(state.order['order_number']?.toString() ?? '') ?? state.order['order_number']} creado'),
               backgroundColor: AppColors.success,
             ),
           );

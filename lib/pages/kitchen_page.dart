@@ -2,6 +2,7 @@ import 'dart:async'; // Add async import
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter/services.dart';
 import '../blocs/orders/orders_bloc.dart';
 import '../widgets/order_card_widget.dart';
 
@@ -13,11 +14,43 @@ class KitchenPage extends StatefulWidget {
 }
 
 class _KitchenPageState extends State<KitchenPage> {
+  bool _showTimers = false;
+  bool _isLandscapeManual = false;
+
   @override
   void initState() {
     super.initState();
+    // Permitir cualquier orientación en cocina
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
     context.read<OrdersBloc>().add(LoadKitchenOrders());
     context.read<OrdersBloc>().add(StartPolling('kitchen'));
+  }
+
+  @override
+  void dispose() {
+    // Volver a vertical al salir si se prefiere
+    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+    super.dispose();
+  }
+
+  void _toggleOrientation() {
+    setState(() {
+      _isLandscapeManual = !_isLandscapeManual;
+    });
+    if (_isLandscapeManual) {
+      SystemChrome.setPreferredOrientations([
+        DeviceOrientation.landscapeLeft,
+        DeviceOrientation.landscapeRight,
+      ]);
+    } else {
+      SystemChrome.setPreferredOrientations([
+        DeviceOrientation.portraitUp,
+      ]);
+    }
   }
 
   @override
@@ -25,7 +58,7 @@ class _KitchenPageState extends State<KitchenPage> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: const Color(0xFFC62828),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
@@ -35,35 +68,36 @@ class _KitchenPageState extends State<KitchenPage> {
         ),
         title: const Row(
           children: [
-            Icon(Icons.restaurant, size: 24),
+            Icon(Icons.restaurant, size: 24, color: Colors.white),
             SizedBox(width: 8),
             Text('MONITOR COCINA',
-                style: TextStyle(fontWeight: FontWeight.bold)),
+                style: TextStyle(
+                    fontWeight: FontWeight.bold, color: Colors.white)),
           ],
         ),
-        foregroundColor: Colors.black87,
-        elevation: 1,
+        foregroundColor: Colors.white,
+        elevation: 4,
         actions: [
-          Container(
-            margin: const EdgeInsets.only(right: 12),
-            child: ElevatedButton(
-              onPressed: () =>
-                  context.read<OrdersBloc>().add(LoadKitchenOrders()),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFFEBEE),
-                foregroundColor: const Color(0xFFC62828),
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              child: const Text('Horno',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
-            ),
+          IconButton(
+            icon: Icon(
+                _isLandscapeManual
+                    ? Icons.screen_lock_landscape
+                    : Icons.screen_rotation,
+                color: Colors.white),
+            tooltip: 'Girar Pantalla',
+            onPressed: _toggleOrientation,
           ),
+          IconButton(
+            icon: Icon(_showTimers ? Icons.timer : Icons.timer_outlined,
+                color: _showTimers ? Colors.amber : Colors.white),
+            tooltip: 'Mostrar/Ocultar Temporizadores',
+            onPressed: () => setState(() => _showTimers = !_showTimers),
+          ),
+          const SizedBox(width: 8),
         ],
       ),
       body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
             child: BlocBuilder<OrdersBloc, OrdersState>(
@@ -103,29 +137,26 @@ class _KitchenPageState extends State<KitchenPage> {
                     );
                   }
 
-                  return Align(
-                    alignment: Alignment.topLeft,
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.all(16),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: state.orders.map((order) {
-                          return Container(
-                            width: 310,
-                            margin: const EdgeInsets.only(right: 16),
-                            child: OrderCardWidget(
-                              order: order,
-                              isKitchen: true,
-                              onStatusChange: (id, status) {
-                                context.read<OrdersBloc>().add(
-                                      UpdateOrderStatus(id, status),
-                                    );
-                              },
-                            ),
-                          );
-                        }).toList(),
-                      ),
+                  return SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: List.generate(state.orders.length, (index) {
+                        return Container(
+                          width: 240,
+                          margin: const EdgeInsets.only(right: 16),
+                          child: OrderCardWidget(
+                            order: state.orders[index],
+                            isKitchen: true,
+                            onStatusChange: (id, status) {
+                              context.read<OrdersBloc>().add(
+                                    UpdateOrderStatus(id, status),
+                                  );
+                            },
+                          ),
+                        );
+                      }),
                     ),
                   );
                 }
@@ -133,8 +164,10 @@ class _KitchenPageState extends State<KitchenPage> {
               },
             ),
           ),
-          const Divider(height: 1),
-          const _KitchenTimersPanel(),
+          if (_showTimers) ...[
+            const Divider(height: 1),
+            const _KitchenTimersPanel(),
+          ],
         ],
       ),
     );
@@ -161,9 +194,9 @@ class _KitchenTimersPanel extends StatelessWidget {
       child: const Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          _TimerWidget(label: 'Horno 1'),
-          _TimerWidget(label: 'Horno 2'),
-          _TimerWidget(label: 'Horno 3'),
+          _TimerWidget(),
+          _TimerWidget(),
+          _TimerWidget(),
         ],
       ),
     );
@@ -171,8 +204,7 @@ class _KitchenTimersPanel extends StatelessWidget {
 }
 
 class _TimerWidget extends StatefulWidget {
-  final String label;
-  const _TimerWidget({required this.label});
+  const _TimerWidget();
 
   @override
   State<_TimerWidget> createState() => _TimerWidgetState();
@@ -183,37 +215,68 @@ class _TimerWidgetState extends State<_TimerWidget> {
   int _initialSeconds = 180; // Memory of the last set time
   Timer? _timer;
   bool _isRunning = false;
+  bool _isAlarming = false;
+  int _alarmSeconds = 60;
 
   @override
   void dispose() {
+    if (_isAlarming) {
+      context.read<OrdersBloc>().soundService.stopTimerAlarm();
+    }
     _timer?.cancel();
     super.dispose();
   }
 
   void _toggleTimer() {
+    if (_isAlarming) {
+      _stopAlarm();
+      return;
+    }
+
     if (_isRunning) {
       _timer?.cancel();
       setState(() => _isRunning = false);
     } else {
       if (_seconds <= 0) {
-        // If 0, reset to initial and start
-        setState(() => _seconds = _initialSeconds);
+        setState(() {
+          _seconds = _initialSeconds;
+          _isAlarming = false;
+          _alarmSeconds = 60;
+        });
       }
       setState(() => _isRunning = true);
       _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-        if (mounted) {
-          setState(() {
-            if (_seconds > 0) {
-              _seconds--;
-            } else {
-              timer.cancel();
-              _isRunning = false;
-              _seconds = _initialSeconds; // Auto-reset to memory
+        if (!mounted) return;
+        setState(() {
+          if (_seconds > 0) {
+            _seconds--;
+            if (_seconds == 0) {
+              _isAlarming = true;
+              _alarmSeconds = 60;
+              context.read<OrdersBloc>().soundService.playTimerAlarm();
             }
-          });
-        }
+          } else if (_isAlarming) {
+            _alarmSeconds--;
+            if (_alarmSeconds <= 0) {
+              _stopAlarm();
+            }
+          }
+        });
       });
     }
+  }
+
+  void _stopAlarm() {
+    if (_isAlarming) {
+      context.read<OrdersBloc>().soundService.stopTimerAlarm();
+    }
+    _timer?.cancel();
+    setState(() {
+      _isAlarming = false;
+      _isRunning = false;
+      _seconds = _initialSeconds;
+      _alarmSeconds = 60;
+    });
   }
 
   void _adjustTime(bool increase) {
@@ -234,14 +297,6 @@ class _TimerWidgetState extends State<_TimerWidget> {
     });
   }
 
-  void _resetTimer() {
-    _timer?.cancel();
-    setState(() {
-      _isRunning = false;
-      _seconds = _initialSeconds; // Reset to last configured time
-    });
-  }
-
   String _formatTime() {
     final m = (_seconds / 60).floor().toString().padLeft(2, '0');
     final s = (_seconds % 60).toString().padLeft(2, '0');
@@ -251,29 +306,24 @@ class _TimerWidgetState extends State<_TimerWidget> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 250,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      width: 320,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: _isRunning ? Colors.green.shade50 : Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(12),
+        color: _isAlarming
+            ? (_alarmSeconds % 2 == 0 ? Colors.red.shade100 : Colors.white)
+            : (_isRunning ? Colors.green.shade50 : Colors.grey.shade50),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: _isRunning ? Colors.green : Colors.grey.shade300,
-          width: 2,
+          color: _isAlarming
+              ? Colors.red
+              : (_isRunning ? Colors.green : Colors.grey.shade300),
+          width: 3,
         ),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            widget.label,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              color: Colors.black54,
-              fontSize: 12,
-            ),
-          ),
-          const SizedBox(height: 4),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.center,
@@ -282,28 +332,18 @@ class _TimerWidgetState extends State<_TimerWidget> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    _formatTime(),
+                    _isAlarming ? 'ALERTA' : _formatTime(),
                     style: TextStyle(
-                      fontSize: 24,
+                      fontSize: _isAlarming ? 32 : 42, // Increased font size
                       fontWeight: FontWeight.w900,
                       fontFamily: 'monospace',
-                      color: _isRunning
-                          ? Colors.green.shade800
-                          : (_seconds > 0 ? Colors.black87 : Colors.grey),
+                      color: _isAlarming
+                          ? Colors.red
+                          : (_isRunning
+                              ? Colors.green.shade800
+                              : (_seconds > 0 ? Colors.black87 : Colors.grey)),
                     ),
                   ),
-                  if (!_isRunning && _seconds > 0)
-                    InkWell(
-                      onTap: _resetTimer,
-                      child: const Padding(
-                        padding: EdgeInsets.only(top: 2),
-                        child: Text("Reset",
-                            style: TextStyle(
-                                fontSize: 10,
-                                color: Colors.blue,
-                                decoration: TextDecoration.underline)),
-                      ),
-                    )
                 ],
               ),
               Row(
@@ -311,26 +351,27 @@ class _TimerWidgetState extends State<_TimerWidget> {
                 children: [
                   _TimeControlButton(
                       icon: Icons.remove, onPressed: () => _adjustTime(false)),
-                  const SizedBox(width: 4),
-                  if (_isRunning)
+                  const SizedBox(width: 8),
+                  if (_isRunning || _isAlarming)
                     IconButton.filled(
                       onPressed: _toggleTimer,
-                      icon: const Icon(Icons.pause, size: 20),
+                      icon: const Icon(Icons.pause, size: 28),
                       style: IconButton.styleFrom(
-                          backgroundColor: Colors.orange,
-                          minimumSize: const Size(36, 36),
+                          backgroundColor:
+                              _isAlarming ? Colors.red : Colors.orange,
+                          minimumSize: const Size(48, 48),
                           padding: EdgeInsets.zero),
                     )
                   else
                     IconButton.filled(
                       onPressed: _seconds > 0 ? _toggleTimer : null,
-                      icon: const Icon(Icons.play_arrow, size: 20),
+                      icon: const Icon(Icons.play_arrow, size: 28),
                       style: IconButton.styleFrom(
                           backgroundColor: Colors.green,
-                          minimumSize: const Size(36, 36),
+                          minimumSize: const Size(48, 48),
                           padding: EdgeInsets.zero),
                     ),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: 8),
                   _TimeControlButton(
                       icon: Icons.add, onPressed: () => _adjustTime(true)),
                 ],
@@ -353,14 +394,14 @@ class _TimeControlButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onPressed,
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(24),
       child: Container(
-        padding: const EdgeInsets.all(6),
+        padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
           color: Colors.grey.shade200,
           shape: BoxShape.circle,
         ),
-        child: Icon(icon, size: 16),
+        child: Icon(icon, size: 24),
       ),
     );
   }

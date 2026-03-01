@@ -31,7 +31,7 @@ class _DeliveryPageState extends State<DeliveryPage> {
       final dateStr =
           '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
       context.read<OrdersBloc>().add(LoadHistory(
-            status: 'ENTREGADO',
+            status: 'Todos',
             deliveryType: 'Delivery',
             date: dateStr,
           ));
@@ -114,15 +114,18 @@ class _DeliveryPageState extends State<DeliveryPage> {
               ),
             );
           }
-
-          return ListView.builder(
-            padding: const EdgeInsets.all(12),
-            itemCount: orders.length,
-            itemBuilder: (_, i) => _deliveryCard(orders[i]),
-          );
+          return _buildListView(orders);
         }
         return const SizedBox.shrink();
       },
+    );
+  }
+
+  Widget _buildListView(List<dynamic> orders) {
+    return ListView.builder(
+      padding: const EdgeInsets.all(12),
+      itemCount: orders.length,
+      itemBuilder: (_, i) => _deliveryCard(orders[i]),
     );
   }
 
@@ -139,7 +142,9 @@ class _DeliveryPageState extends State<DeliveryPage> {
           final orders = state.orders;
           int totalDeliveryFees = 0;
           for (var o in orders) {
-            totalDeliveryFees += (o['delivery_fee'] as num? ?? 0).toInt();
+            if (o['status'] == 'ENTREGADO') {
+              totalDeliveryFees += (o['delivery_fee'] as num? ?? 0).toInt();
+            }
           }
 
           if (orders.isEmpty) {
@@ -153,7 +158,7 @@ class _DeliveryPageState extends State<DeliveryPage> {
               Container(
                 padding: const EdgeInsets.all(20),
                 width: double.infinity,
-                color: AppColors.primary.withValues(alpha: 0.05),
+                color: AppColors.primary.withOpacity(0.05),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
@@ -171,16 +176,50 @@ class _DeliveryPageState extends State<DeliveryPage> {
                   itemCount: orders.length,
                   itemBuilder: (context, i) {
                     final order = orders[i];
+                    final isDeleted = order['status'] == 'ELIMINADO';
                     return Card(
                       margin: const EdgeInsets.only(bottom: 8),
+                      color: isDeleted ? Colors.red.shade50 : null,
                       child: ListTile(
-                        leading: const CircleAvatar(
-                          backgroundColor: AppColors.success,
-                          child: Icon(Icons.check, color: Colors.white),
+                        leading: CircleAvatar(
+                          backgroundColor:
+                              isDeleted ? Colors.red : AppColors.success,
+                          child: Icon(
+                            isDeleted ? Icons.delete_forever : Icons.check,
+                            color: Colors.white,
+                          ),
                         ),
-                        title: Text(
-                          '#${order['order_number']} - ${order['client_name']}',
-                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        title: Row(
+                          children: [
+                            Text(
+                              '${int.tryParse(order['order_number']?.toString() ?? '') ?? order['order_number']} - ${order['client_name']}',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                decoration: isDeleted
+                                    ? TextDecoration.lineThrough
+                                    : null,
+                              ),
+                            ),
+                            if (isDeleted) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.red,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: const Text(
+                                  'CANCELADO',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
                         subtitle: Text(
                             'Envío: \$${_formatPrice(order['delivery_fee'] ?? 0)}'),
@@ -237,7 +276,8 @@ class _DeliveryPageState extends State<DeliveryPage> {
     final phone = (order['phone'] ?? '').toString();
     final address = (order['delivery_address'] ?? '').toString();
     final clientName = (order['client_name'] ?? '').toString();
-    final orderNumber = (order['order_number'] ?? '').toString();
+    final orderNumber = int.tryParse(order['order_number']?.toString() ?? '') ??
+        order['order_number'];
     final paymentMethod = (order['payment_method'] ?? 'No definido').toString();
     final totalAmount = int.tryParse(order['total_amount'].toString()) ?? 0;
 
@@ -245,7 +285,7 @@ class _DeliveryPageState extends State<DeliveryPage> {
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: statusColor.withValues(alpha: 0.3), width: 2),
+        side: BorderSide(color: statusColor.withOpacity(0.3), width: 2),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -256,7 +296,7 @@ class _DeliveryPageState extends State<DeliveryPage> {
             Row(
               children: [
                 Text(
-                  '#$orderNumber',
+                  '$orderNumber',
                   style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.w700,
@@ -274,7 +314,7 @@ class _DeliveryPageState extends State<DeliveryPage> {
                     vertical: 6,
                   ),
                   decoration: BoxDecoration(
-                    color: statusColor.withValues(alpha: 0.1),
+                    color: statusColor.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
@@ -419,9 +459,9 @@ class _DeliveryPageState extends State<DeliveryPage> {
           width: 48,
           height: 48,
           decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.12),
+            color: color.withOpacity(0.12),
             shape: BoxShape.circle,
-            border: Border.all(color: color.withValues(alpha: 0.3)),
+            border: Border.all(color: color.withOpacity(0.3)),
           ),
           child: Center(
             child: faIcon != null
