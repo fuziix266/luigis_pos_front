@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'config/theme.dart';
 import 'config/router.dart';
 import 'data/api_client.dart';
@@ -34,6 +35,15 @@ class LuigisPosApp extends StatelessWidget {
         theme: AppTheme.lightTheme,
         scrollBehavior: const AppScrollBehavior(),
         routerConfig: appRouter,
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [
+          Locale('es', 'ES'),
+          Locale('en', 'US'),
+        ],
       ),
     );
   }

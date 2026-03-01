@@ -156,12 +156,14 @@ class ApiClient {
     String? paymentMethod,
     String? deliveryType,
     String? date,
+    String? endDate,
   }) async {
     final params = <String, dynamic>{};
     if (status != null) params['status'] = status;
     if (paymentMethod != null) params['payment_method'] = paymentMethod;
     if (deliveryType != null) params['delivery_type'] = deliveryType;
     if (date != null) params['date'] = date;
+    if (endDate != null) params['end_date'] = endDate;
 
     final response = await _dio.get(
       '/api/orders/history',

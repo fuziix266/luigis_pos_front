@@ -15,7 +15,10 @@ class _HistoryPageState extends State<HistoryPage> {
   String? _statusFilter;
   String? _paymentFilter;
   String? _deliveryFilter;
-  DateTime _selectedDate = DateTime.now();
+  DateTimeRange _selectedDateRange = DateTimeRange(
+    start: DateTime.now(),
+    end: DateTime.now(),
+  );
 
   @override
   void initState() {
@@ -25,14 +28,18 @@ class _HistoryPageState extends State<HistoryPage> {
   }
 
   void _loadHistory() {
-    final dateStr =
-        '${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}';
+    final startStr =
+        '${_selectedDateRange.start.year}-${_selectedDateRange.start.month.toString().padLeft(2, '0')}-${_selectedDateRange.start.day.toString().padLeft(2, '0')}';
+    final endStr =
+        '${_selectedDateRange.end.year}-${_selectedDateRange.end.month.toString().padLeft(2, '0')}-${_selectedDateRange.end.day.toString().padLeft(2, '0')}';
+
     context.read<OrdersBloc>().add(
           LoadHistory(
             status: _statusFilter,
             paymentMethod: _paymentFilter,
             deliveryType: _deliveryFilter,
-            date: dateStr,
+            date: startStr,
+            endDate: startStr != endStr ? endStr : null,
           ),
         );
   }
@@ -45,19 +52,32 @@ class _HistoryPageState extends State<HistoryPage> {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.go('/'),
         ),
-        title: const Text('Historial'),
+        title: Row(
+          children: [
+            const Text('Historial'),
+            const SizedBox(width: 8),
+            Text(
+              _selectedDateRange.start == _selectedDateRange.end
+                  ? '(${_selectedDateRange.start.day}/${_selectedDateRange.start.month}/${_selectedDateRange.start.year})'
+                  : '(${_selectedDateRange.start.day}/${_selectedDateRange.start.month} al ${_selectedDateRange.end.day}/${_selectedDateRange.end.month})',
+              style:
+                  const TextStyle(fontSize: 14, fontWeight: FontWeight.normal),
+            ),
+          ],
+        ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.calendar_today),
+            tooltip: 'Cambiar Fechas',
+            icon: const Icon(Icons.date_range),
             onPressed: () async {
-              final date = await showDatePicker(
+              final dateRange = await showDateRangePicker(
                 context: context,
-                initialDate: _selectedDate,
+                initialDateRange: _selectedDateRange,
                 firstDate: DateTime(2020),
                 lastDate: DateTime.now(),
               );
-              if (date != null) {
-                setState(() => _selectedDate = date);
+              if (dateRange != null) {
+                setState(() => _selectedDateRange = dateRange);
                 _loadHistory();
               }
             },

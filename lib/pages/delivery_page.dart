@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:intl/intl.dart';
 import '../blocs/orders/orders_bloc.dart';
 import '../config/theme.dart';
 
@@ -15,6 +16,10 @@ class DeliveryPage extends StatefulWidget {
 
 class _DeliveryPageState extends State<DeliveryPage> {
   bool _showingHistory = false;
+  DateTimeRange _selectedDateRange = DateTimeRange(
+    start: DateTime.now(),
+    end: DateTime.now(),
+  );
 
   @override
   void initState() {
@@ -27,15 +32,52 @@ class _DeliveryPageState extends State<DeliveryPage> {
       context.read<OrdersBloc>().add(LoadDeliveryOrders());
       context.read<OrdersBloc>().add(StartPolling('delivery'));
     } else {
-      final now = DateTime.now();
-      final dateStr =
-          '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      final startStr =
+          DateFormat('yyyy-MM-dd').format(_selectedDateRange.start);
+      final endStr = DateFormat('yyyy-MM-dd').format(_selectedDateRange.end);
+
       context.read<OrdersBloc>().add(LoadHistory(
             status: 'Todos',
             deliveryType: 'Delivery',
-            date: dateStr,
+            date: startStr,
+            endDate: startStr != endStr ? endStr : null,
           ));
-      context.read<OrdersBloc>().add(StartPolling('delivery_history'));
+
+      // Solo polleamos si es el historial de hoy
+      final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
+      if (startStr == todayStr && endStr == todayStr) {
+        context.read<OrdersBloc>().add(StartPolling('delivery_history'));
+      } else {
+        context.read<OrdersBloc>().add(StopPolling());
+      }
+    }
+  }
+
+  Future<void> _selectDateRange(BuildContext context) async {
+    final DateTimeRange? picked = await showDateRangePicker(
+      context: context,
+      initialDateRange: _selectedDateRange,
+      firstDate: DateTime(2024),
+      lastDate: DateTime.now(),
+      locale: const Locale('es', 'ES'),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: AppColors.primary,
+              onPrimary: Colors.white,
+              onSurface: AppColors.textPrimary,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null && picked != _selectedDateRange) {
+      setState(() {
+        _selectedDateRange = picked;
+      });
+      _loadData();
     }
   }
 
@@ -62,9 +104,28 @@ class _DeliveryPageState extends State<DeliveryPage> {
             }
           },
         ),
-        title: Text(
-            _showingHistory ? 'Historial de Repartos' : 'Repartos Activos'),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+                _showingHistory ? 'Historial de Repartos' : 'Repartos Activos'),
+            if (_showingHistory)
+              Text(
+                _selectedDateRange.start == _selectedDateRange.end
+                    ? DateFormat('dd/MM/yyyy').format(_selectedDateRange.start)
+                    : '${DateFormat('dd/MM').format(_selectedDateRange.start)} al ${DateFormat('dd/MM/yyyy').format(_selectedDateRange.end)}',
+                style: const TextStyle(
+                    fontSize: 12, fontWeight: FontWeight.normal),
+              ),
+          ],
+        ),
         actions: [
+          if (_showingHistory)
+            IconButton(
+              tooltip: 'Cambiar Rango',
+              icon: const Icon(Icons.calendar_month),
+              onPressed: () => _selectDateRange(context),
+            ),
           IconButton(
             tooltip: _showingHistory
                 ? 'Ver Repartos Activos'
@@ -73,6 +134,12 @@ class _DeliveryPageState extends State<DeliveryPage> {
             onPressed: () {
               setState(() {
                 _showingHistory = !_showingHistory;
+                if (_showingHistory) {
+                  _selectedDateRange = DateTimeRange(
+                    start: DateTime.now(),
+                    end: DateTime.now(),
+                  );
+                }
               });
               _loadData();
             },
@@ -148,8 +215,28 @@ class _DeliveryPageState extends State<DeliveryPage> {
           }
 
           if (orders.isEmpty) {
-            return const Center(
-              child: Text('No hay repartos registrados hoy'),
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.history, size: 64, color: Colors.grey),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No hay repartos registrados ' +
+                        (_selectedDateRange.start == _selectedDateRange.end
+                            ? 'el ${DateFormat('dd/MM/yyyy').format(_selectedDateRange.start)}'
+                            : 'entre el ${DateFormat('dd/MM/yyyy').format(_selectedDateRange.start)} y el ${DateFormat('dd/MM/yyyy').format(_selectedDateRange.end)}'),
+                    style: const TextStyle(color: Colors.grey, fontSize: 16),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    onPressed: () => _selectDateRange(context),
+                    icon: const Icon(Icons.date_range),
+                    label: const Text('Seleccionar Rango'),
+                  )
+                ],
+              ),
             );
           }
 

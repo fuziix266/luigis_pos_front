@@ -23,9 +23,16 @@ class LoadHistory extends OrdersEvent {
   final String? paymentMethod;
   final String? deliveryType;
   final String? date;
-  LoadHistory({this.status, this.paymentMethod, this.deliveryType, this.date});
+  final String? endDate;
+  LoadHistory(
+      {this.status,
+      this.paymentMethod,
+      this.deliveryType,
+      this.date,
+      this.endDate});
   @override
-  List<Object?> get props => [status, paymentMethod, deliveryType, date];
+  List<Object?> get props =>
+      [status, paymentMethod, deliveryType, date, endDate];
 }
 
 class CreateOrder extends OrdersEvent {
@@ -112,7 +119,9 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
   final SoundService soundService;
   Timer? _pollTimer;
   Set<int> _lastKitchenIds = {};
+  Set<int> _lastDeliveryIds = {};
   bool _isFirstKitchenLoad = true;
+  bool _isFirstDeliveryLoad = true;
   String _currentViewType = 'active';
 
   OrdersBloc(this.apiClient, this.soundService) : super(OrdersInitial()) {
@@ -203,6 +212,18 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
     if (state is! OrdersLoaded) emit(OrdersLoading());
     try {
       final orders = await apiClient.getDeliveryOrders();
+
+      // Detect new orders for sound alert
+      final currentIds = orders.map((o) => (o['id'] as num).toInt()).toSet();
+      if (!_isFirstDeliveryLoad) {
+        final newIds = currentIds.difference(_lastDeliveryIds);
+        if (newIds.isNotEmpty) {
+          soundService.playNewDeliveryOrder();
+        }
+      }
+      _lastDeliveryIds = currentIds;
+      _isFirstDeliveryLoad = false;
+
       emit(OrdersLoaded(orders));
     } catch (e) {
       emit(OrdersError(e.toString()));
@@ -233,6 +254,7 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
         paymentMethod: event.paymentMethod,
         deliveryType: event.deliveryType,
         date: event.date,
+        endDate: event.endDate,
       );
       emit(OrdersLoaded(data['orders'] ?? [], summary: data['summary']));
     } catch (e) {
@@ -325,7 +347,9 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
     _pollTimer?.cancel();
     _pollTimer = null;
     _lastKitchenIds.clear();
+    _lastDeliveryIds.clear();
     _isFirstKitchenLoad = true;
+    _isFirstDeliveryLoad = true;
   }
 
   @override

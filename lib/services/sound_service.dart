@@ -12,6 +12,15 @@ class SoundService {
     }
   }
 
+  void playNewDeliveryOrder() {
+    try {
+      final audio = html.AudioElement('assets/sounds/nuevo_pedido_cocina.mp3');
+      audio.play();
+    } catch (e) {
+      print('Error reproduciendo sonido delivery: $e');
+    }
+  }
+
   int _activeAlarms = 0;
 
   void playTimerAlarm() {
