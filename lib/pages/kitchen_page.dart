@@ -41,14 +41,19 @@ class _KitchenPageState extends State<KitchenPage> {
     setState(() {
       _isLandscapeManual = !_isLandscapeManual;
     });
+
+    // Intentar bloquear orientación si es posible (nativos)
     if (_isLandscapeManual) {
       SystemChrome.setPreferredOrientations([
         DeviceOrientation.landscapeLeft,
         DeviceOrientation.landscapeRight,
       ]);
     } else {
+      // En modo cuadrícula permitimos que el sistema decida o forzamos portrait si se prefiere
       SystemChrome.setPreferredOrientations([
         DeviceOrientation.portraitUp,
+        DeviceOrientation.landscapeLeft,
+        DeviceOrientation.landscapeRight,
       ]);
     }
   }
@@ -79,12 +84,10 @@ class _KitchenPageState extends State<KitchenPage> {
         elevation: 4,
         actions: [
           IconButton(
-            icon: Icon(
-                _isLandscapeManual
-                    ? Icons.screen_lock_landscape
-                    : Icons.screen_rotation,
+            icon: Icon(_isLandscapeManual ? Icons.grid_view : Icons.view_column,
                 color: Colors.white),
-            tooltip: 'Girar Pantalla',
+            tooltip:
+                _isLandscapeManual ? 'Vista Cuadrícula' : 'Vista Horizontal',
             onPressed: _toggleOrientation,
           ),
           IconButton(
@@ -137,6 +140,34 @@ class _KitchenPageState extends State<KitchenPage> {
                     );
                   }
 
+                  // Si está activado el modo "Landscape" (Manual), mostramos en FILA horizontal
+                  // Si no, podemos usar una cuadrícula para aprovechar mejor el espacio en tablets
+                  if (!_isLandscapeManual) {
+                    return GridView.builder(
+                      padding: const EdgeInsets.all(16),
+                      gridDelegate:
+                          const SliverGridDelegateWithMaxCrossAxisExtent(
+                        maxCrossAxisExtent: 350,
+                        crossAxisSpacing: 16,
+                        mainAxisSpacing: 16,
+                        childAspectRatio:
+                            0.55, // Ajustado para el alto de las cartas de cocina
+                      ),
+                      itemCount: state.orders.length,
+                      itemBuilder: (context, index) {
+                        return OrderCardWidget(
+                          order: state.orders[index],
+                          isKitchen: true,
+                          onStatusChange: (id, status) {
+                            context.read<OrdersBloc>().add(
+                                  UpdateOrderStatus(id, status),
+                                );
+                          },
+                        );
+                      },
+                    );
+                  }
+
                   return SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     padding: const EdgeInsets.all(16),
@@ -144,7 +175,7 @@ class _KitchenPageState extends State<KitchenPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: List.generate(state.orders.length, (index) {
                         return Container(
-                          width: 240,
+                          width: 280, // Aumentado para mejor visualización
                           margin: const EdgeInsets.only(right: 16),
                           child: OrderCardWidget(
                             order: state.orders[index],

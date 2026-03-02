@@ -22,8 +22,10 @@ class _Promo2OptionsPageState extends State<Promo2OptionsPage> {
   // Fixed configuration for Promo 2
   late List<Promo2PizzaState> _pizzas;
   bool _upgradeToParmesan = false;
+  bool _noGarlicSticks = false; // Nueva opción
   String _selectedDrink = 'Coca Cola 1.5L';
   final int _parmesanUpgradePrice = 1000;
+  final int _noGarlicDiscount = 1000; // Descuento
 
   @override
   void initState() {
@@ -99,7 +101,10 @@ class _Promo2OptionsPageState extends State<Promo2OptionsPage> {
   }
 
   int get _totalPrice {
-    return widget.basePrice + (_upgradeToParmesan ? _parmesanUpgradePrice : 0);
+    int price = widget.basePrice;
+    if (_upgradeToParmesan) price += _parmesanUpgradePrice;
+    if (_noGarlicSticks) price -= _noGarlicDiscount;
+    return price;
   }
 
   @override
@@ -170,30 +175,70 @@ class _Promo2OptionsPageState extends State<Promo2OptionsPage> {
                   const SizedBox(height: 12),
                   SizedBox(
                     width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        setState(() {
-                          _upgradeToParmesan = !_upgradeToParmesan;
-                        });
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _upgradeToParmesan
-                            ? AppColors.primary
-                            : Colors.grey.shade200,
-                        foregroundColor: _upgradeToParmesan
-                            ? Colors.white
-                            : AppColors.textPrimary,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () {
+                              setState(() {
+                                _noGarlicSticks = !_noGarlicSticks;
+                                if (_noGarlicSticks) {
+                                  _upgradeToParmesan = false;
+                                }
+                              });
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: _noGarlicSticks
+                                  ? Colors.red
+                                  : Colors.grey.shade200,
+                              foregroundColor: _noGarlicSticks
+                                  ? Colors.white
+                                  : AppColors.textPrimary,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              elevation: _noGarlicSticks ? 2 : 0,
+                            ),
+                            child: Text(
+                              'Sin Palitos (-\$1.000)',
+                              style: TextStyle(
+                                  fontSize: 14, fontWeight: FontWeight.bold),
+                            ),
+                          ),
                         ),
-                        elevation: _upgradeToParmesan ? 2 : 0,
-                      ),
-                      child: const Text(
-                        'Palitos Parmesano (+\$1.000)',
-                        style: TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.bold),
-                      ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () {
+                              setState(() {
+                                _upgradeToParmesan = !_upgradeToParmesan;
+                                if (_upgradeToParmesan) {
+                                  _noGarlicSticks = false;
+                                }
+                              });
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: _upgradeToParmesan
+                                  ? AppColors.primary
+                                  : Colors.grey.shade200,
+                              foregroundColor: _upgradeToParmesan
+                                  ? Colors.white
+                                  : AppColors.textPrimary,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              elevation: _upgradeToParmesan ? 2 : 0,
+                            ),
+                            child: Text(
+                              'Palitos Parm. (+\$1.000)',
+                              style: TextStyle(
+                                  fontSize: 14, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
 
@@ -404,6 +449,8 @@ class _Promo2OptionsPageState extends State<Promo2OptionsPage> {
 
                 if (_upgradeToParmesan) {
                   parts.add('Palitos Parmesano');
+                } else if (_noGarlicSticks) {
+                  parts.add('Sin Palitos de ajo');
                 } else {
                   parts.add('Palitos de ajo');
                 }
@@ -423,11 +470,10 @@ class _Promo2OptionsPageState extends State<Promo2OptionsPage> {
 
                 // Global extras/notes
                 if (_upgradeToParmesan) {
-                  // Maybe show as extra or just description? User said extras green.
-                  // Palitos is a side, upgrading is a modification.
-                  // Let's keep it in description for now or extra?
-                  // "Palitos Parmesano" is essentially an item modification.
-                  // I'll leave it in description to avoid confusion with pizza ingredients.
+                  // Upgrading is a modification
+                }
+                if (_noGarlicSticks) {
+                  allRemoved.add('Palitos de ajo');
                 }
 
                 for (var p in _pizzas) {
