@@ -30,6 +30,8 @@ class _NewOrderPageState extends State<NewOrderPage>
   String _clientName = '';
   String _phone = '';
   String _address = '';
+  String _addressDetail = '';
+  String _notes = '';
   String _deliveryZone = 'Base (\$3.000)';
   bool _userChangedZoneManually = false;
   Timer? _debounce;
@@ -60,7 +62,7 @@ class _NewOrderPageState extends State<NewOrderPage>
 
     try {
       final dio = Dio();
-      final url = '${ApiClient.baseUrl}/api/delivery/geocode';
+      const url = '${ApiClient.baseUrl}/api/delivery/geocode';
       final response = await dio.post(url,
           data: {'address': address},
           options: Options(
@@ -135,7 +137,7 @@ class _NewOrderPageState extends State<NewOrderPage>
         // VISUAL DEBUG ACTIVATED FOR USER
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("MAPA: \$newZone"),
+            content: const Text("MAPA: \$newZone"),
             duration: const Duration(seconds: 4),
             backgroundColor:
                 newZone.contains('3.000') ? Colors.orange : Colors.blue,
@@ -153,7 +155,7 @@ class _NewOrderPageState extends State<NewOrderPage>
       print("Geocoding error: \$e");
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+          const SnackBar(
               content: Text('Error local: \$e'), backgroundColor: Colors.red),
         );
       }
@@ -197,6 +199,8 @@ class _NewOrderPageState extends State<NewOrderPage>
     _clientName = order['client_name'] ?? '';
     _phone = order['phone'] ?? '';
     _address = order['delivery_address'] ?? '';
+    _addressDetail = order['address_detail'] ?? '';
+    _notes = order['notes'] ?? '';
     _deliveryType = order['delivery_type'];
     _paymentMethod = order['payment_method'];
 
@@ -882,8 +886,9 @@ class _NewOrderPageState extends State<NewOrderPage>
                                 }
 
                                 final descParts = counts.entries.map((e) {
-                                  if (e.value > 1)
+                                  if (e.value > 1) {
                                     return '${e.key} x${e.value}';
+                                  }
                                   return e.key;
                                 }).toList();
 
@@ -900,11 +905,10 @@ class _NewOrderPageState extends State<NewOrderPage>
                             : null,
                         icon: const Icon(Icons.add_shopping_cart),
                         label: Text(
-                          'Agregar' +
-                              (selections.length > 2
+                          'Agregar${selections.length > 2
                                   ? ' (\$${basePrice + (selections.length - 2) * 6000})'
-                                  : ''),
-                          style: TextStyle(
+                                  : ''}',
+                          style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
                           ),
@@ -1147,7 +1151,7 @@ class _NewOrderPageState extends State<NewOrderPage>
             final double width = constraints.maxWidth;
             // Show 2 columns if width is greater than 800 (typical tablet landscape/desktop)
             final int cols = width > 800 ? 2 : 1;
-            final double spacing = 12;
+            const double spacing = 12;
             final double itemWidth = (width - (cols - 1) * spacing) / cols;
 
             return Wrap(
@@ -1293,6 +1297,8 @@ class _NewOrderPageState extends State<NewOrderPage>
     final nameCtrl = TextEditingController(text: _clientName);
     final phoneCtrl = TextEditingController(text: _phone);
     final addressCtrl = TextEditingController(text: _address);
+    final addressDetailCtrl = TextEditingController(text: _addressDetail);
+    final notesCtrl = TextEditingController(text: _notes);
 
     showDialog(
       context: context,
@@ -1466,8 +1472,54 @@ class _NewOrderPageState extends State<NewOrderPage>
                                   final data = await Clipboard.getData(
                                       Clipboard.kTextPlain);
                                   if (data?.text != null) {
-                                    addressCtrl.text = data!.text!;
-                                    _address = data.text!;
+                                    final pastedText = data!.text!;
+                                    addressCtrl.text = pastedText;
+                                    // Place cursor at end
+                                    addressCtrl.selection = TextSelection.fromPosition(
+                                      TextPosition(offset: pastedText.length),
+                                    );
+                                    _address = pastedText;
+
+                                    // Trigger the same zone detection logic as onChanged
+                                    if (!_userChangedZoneManually) {
+                                      final lower = pastedText.toLowerCase();
+                                      String newZone = 'Base (\$3.000)';
+
+                                      if (lower.contains('avalos') ||
+                                          lower.contains('ávalos') ||
+                                          lower.contains('capitan') ||
+                                          lower.contains('capitán') ||
+                                          lower.contains('interior') ||
+                                          lower.contains('cerro') ||
+                                          lower.contains('lluta') ||
+                                          lower.contains('azapa')) {
+                                        newZone =
+                                            'Pasado Capitán Ávalos/Interior (\$4.000)';
+                                      } else if (lower.contains('yerbas buenas') ||
+                                          lower.contains('norte')) {
+                                        newZone = 'Norte/Pasado Yerbas Buenas (\$3.500)';
+                                      }
+
+                                      if (_deliveryZone != newZone) {
+                                        setDialogState(() {
+                                          setState(() {
+                                            _deliveryZone = newZone;
+                                            _updateDeliveryFee();
+                                          });
+                                        });
+                                      }
+
+                                      // Also trigger geocoding
+                                      if (_debounce?.isActive ?? false) _debounce!.cancel();
+                                      _debounce = Timer(const Duration(milliseconds: 1500),
+                                          () async {
+                                        if (mounted) {
+                                          setState(() => _isGeocoding = true);
+                                          setDialogState(() {});
+                                          await _geocodeAddress(pastedText, setDialogState);
+                                        }
+                                      });
+                                    }
                                   }
                                 } catch (e) {
                                   ScaffoldMessenger.of(context).showSnackBar(
@@ -1556,6 +1608,34 @@ class _NewOrderPageState extends State<NewOrderPage>
                         }
                       },
                     ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: addressDetailCtrl,
+                      decoration: InputDecoration(
+                        labelText: 'Detalle dirección (ej: casa roja)',
+                        prefixIcon: const Icon(Icons.home_outlined),
+                        suffixIcon: IconButton(
+                          icon: const Icon(Icons.paste, size: 20),
+                          onPressed: () async {
+                            try {
+                              final data = await Clipboard.getData(
+                                  Clipboard.kTextPlain);
+                              if (data?.text != null) {
+                                addressDetailCtrl.text = data!.text!;
+                                _addressDetail = data.text!;
+                              }
+                            } catch (e) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                    content: Text(
+                                        'Por HTTP usa Pegar de sistema (Ctrl+V)')),
+                              );
+                            }
+                          },
+                        ),
+                      ),
+                      onChanged: (v) => _addressDetail = v,
+                    ),
                   ],
                   const SizedBox(height: 8),
 
@@ -1575,6 +1655,37 @@ class _NewOrderPageState extends State<NewOrderPage>
                         .toList(),
                     onChanged: (v) => setDialogState(
                         () => setState(() => _paymentMethod = v)),
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Comentario para cocina
+                  TextField(
+                    controller: notesCtrl,
+                    decoration: InputDecoration(
+                      labelText: 'Comentario para cocina',
+                      prefixIcon: const Icon(Icons.comment_outlined),
+                      suffixIcon: IconButton(
+                        icon: const Icon(Icons.paste, size: 20),
+                        onPressed: () async {
+                          try {
+                            final data = await Clipboard.getData(
+                                Clipboard.kTextPlain);
+                            if (data?.text != null) {
+                              notesCtrl.text = data!.text!;
+                              _notes = data.text!;
+                            }
+                          } catch (e) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content: Text(
+                                      'Por HTTP usa Pegar de sistema (Ctrl+V)')),
+                            );
+                          }
+                        },
+                      ),
+                    ),
+                    maxLines: 2,
+                    onChanged: (v) => _notes = v,
                   ),
                   const SizedBox(height: 16),
                   Row(
@@ -1637,9 +1748,8 @@ class _NewOrderPageState extends State<NewOrderPage>
                             scheduledDate.add(const Duration(days: 1));
                       }
 
-                      final isDelivery = ['Delivery', 'PedidosYa', 'UberEats']
-                          .contains(_deliveryType);
-                      final subtractMinutes = isDelivery ? 40 : 20;
+                      final isOwnDelivery = _deliveryType == 'Delivery';
+                      final subtractMinutes = isOwnDelivery ? 40 : 20;
 
                       final activationTime = scheduledDate
                           .subtract(Duration(minutes: subtractMinutes));
@@ -1798,6 +1908,8 @@ class _NewOrderPageState extends State<NewOrderPage>
       'payment_method': _paymentMethod, // Allow null
       'phone': _phone,
       'delivery_address': _address,
+      'address_detail': _addressDetail,
+      'notes': _notes,
       'items': _cartItems,
     };
 
@@ -1809,8 +1921,12 @@ class _NewOrderPageState extends State<NewOrderPage>
         String twoDigits(int n) => n.toString().padLeft(2, "0");
         final formattedTime =
             '${twoDigits(deliveryTime.hour)}:${twoDigits(deliveryTime.minute)}';
-        data['notes'] =
+        final scheduleNote =
             'Programado para entregar/retirar a las: $formattedTime';
+        // Append scheduling info to user notes
+        data['notes'] = _notes.isNotEmpty
+            ? '$_notes\n$scheduleNote'
+            : scheduleNote;
       }
     }
 

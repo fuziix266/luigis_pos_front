@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter/services.dart';
+import 'dart:html' as html;
+import 'dart:js' as js;
 import '../blocs/orders/orders_bloc.dart';
 import '../widgets/order_card_widget.dart';
 
@@ -15,14 +17,13 @@ class KitchenPage extends StatefulWidget {
 
 class _KitchenPageState extends State<KitchenPage> {
   bool _showTimers = false;
-  bool _isLandscapeManual = false;
+  bool _isFullscreen = false;
 
   @override
   void initState() {
     super.initState();
-    // Permitir cualquier orientación en cocina
+    // Forzar orientación horizontal en cocina
     SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
       DeviceOrientation.landscapeLeft,
       DeviceOrientation.landscapeRight,
     ]);
@@ -37,24 +38,36 @@ class _KitchenPageState extends State<KitchenPage> {
     super.dispose();
   }
 
-  void _toggleOrientation() {
-    setState(() {
-      _isLandscapeManual = !_isLandscapeManual;
-    });
 
-    // Intentar bloquear orientación si es posible (nativos)
-    if (_isLandscapeManual) {
-      SystemChrome.setPreferredOrientations([
-        DeviceOrientation.landscapeLeft,
-        DeviceOrientation.landscapeRight,
-      ]);
+  void _toggleFullscreen() {
+    if (html.document.fullscreenElement != null) {
+      html.document.exitFullscreen();
+      setState(() => _isFullscreen = false);
     } else {
-      // En modo cuadrícula permitimos que el sistema decida o forzamos portrait si se prefiere
-      SystemChrome.setPreferredOrientations([
-        DeviceOrientation.portraitUp,
-        DeviceOrientation.landscapeLeft,
-        DeviceOrientation.landscapeRight,
+      html.document.documentElement?.requestFullscreen();
+      setState(() => _isFullscreen = true);
+    }
+  }
+
+  void _startCast() {
+    try {
+      js.context.callMethod('eval', [
+        '''
+        if (navigator.presentation) {
+          new PresentationRequest(window.location.href)
+            .start()
+            .catch(function(e) { console.log('Cast cancelled or error:', e); });
+        } else {
+          alert('Tu navegador no soporta Transmitir. Usa el menú de Chrome → Transmitir.');
+        }
+        '''
       ]);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Usa el menú de Chrome → Transmitir (o 3 puntos → Transmitir)'),
+        ),
+      );
     }
   }
 
@@ -84,11 +97,17 @@ class _KitchenPageState extends State<KitchenPage> {
         elevation: 4,
         actions: [
           IconButton(
-            icon: Icon(_isLandscapeManual ? Icons.grid_view : Icons.view_column,
-                color: Colors.white),
-            tooltip:
-                _isLandscapeManual ? 'Vista Cuadrícula' : 'Vista Horizontal',
-            onPressed: _toggleOrientation,
+            icon: const Icon(Icons.cast, color: Colors.white),
+            tooltip: 'Transmitir',
+            onPressed: _startCast,
+          ),
+          IconButton(
+            icon: Icon(
+              _isFullscreen ? Icons.fullscreen_exit : Icons.fullscreen,
+              color: Colors.white,
+            ),
+            tooltip: _isFullscreen ? 'Salir de Pantalla Completa' : 'Pantalla Completa',
+            onPressed: _toggleFullscreen,
           ),
           IconButton(
             icon: Icon(_showTimers ? Icons.timer : Icons.timer_outlined,
@@ -140,34 +159,6 @@ class _KitchenPageState extends State<KitchenPage> {
                     );
                   }
 
-                  // Si está activado el modo "Landscape" (Manual), mostramos en FILA horizontal
-                  // Si no, podemos usar una cuadrícula para aprovechar mejor el espacio en tablets
-                  if (!_isLandscapeManual) {
-                    return GridView.builder(
-                      padding: const EdgeInsets.all(16),
-                      gridDelegate:
-                          const SliverGridDelegateWithMaxCrossAxisExtent(
-                        maxCrossAxisExtent: 350,
-                        crossAxisSpacing: 16,
-                        mainAxisSpacing: 16,
-                        childAspectRatio:
-                            0.55, // Ajustado para el alto de las cartas de cocina
-                      ),
-                      itemCount: state.orders.length,
-                      itemBuilder: (context, index) {
-                        return OrderCardWidget(
-                          order: state.orders[index],
-                          isKitchen: true,
-                          onStatusChange: (id, status) {
-                            context.read<OrdersBloc>().add(
-                                  UpdateOrderStatus(id, status),
-                                );
-                          },
-                        );
-                      },
-                    );
-                  }
-
                   return SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     padding: const EdgeInsets.all(16),
@@ -175,7 +166,7 @@ class _KitchenPageState extends State<KitchenPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: List.generate(state.orders.length, (index) {
                         return Container(
-                          width: 280, // Aumentado para mejor visualización
+                          width: 280,
                           margin: const EdgeInsets.only(right: 16),
                           child: OrderCardWidget(
                             order: state.orders[index],
@@ -223,11 +214,12 @@ class _KitchenTimersPanel extends StatelessWidget {
         ],
       ),
       child: const Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          _TimerWidget(),
-          _TimerWidget(),
-          _TimerWidget(),
+          Expanded(child: _TimerWidget()),
+          SizedBox(width: 16),
+          Expanded(child: _TimerWidget()),
+          SizedBox(width: 16),
+          Expanded(child: _TimerWidget()),
         ],
       ),
     );
@@ -337,8 +329,7 @@ class _TimerWidgetState extends State<_TimerWidget> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 320,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       decoration: BoxDecoration(
         color: _isAlarming
             ? (_alarmSeconds % 2 == 0 ? Colors.red.shade100 : Colors.white)
@@ -365,7 +356,7 @@ class _TimerWidgetState extends State<_TimerWidget> {
                   Text(
                     _isAlarming ? 'ALERTA' : _formatTime(),
                     style: TextStyle(
-                      fontSize: _isAlarming ? 32 : 42, // Increased font size
+                      fontSize: _isAlarming ? 44 : 56,
                       fontWeight: FontWeight.w900,
                       fontFamily: 'monospace',
                       color: _isAlarming
@@ -386,20 +377,20 @@ class _TimerWidgetState extends State<_TimerWidget> {
                   if (_isRunning || _isAlarming)
                     IconButton.filled(
                       onPressed: _toggleTimer,
-                      icon: const Icon(Icons.pause, size: 28),
+                      icon: const Icon(Icons.pause, size: 34),
                       style: IconButton.styleFrom(
                           backgroundColor:
                               _isAlarming ? Colors.red : Colors.orange,
-                          minimumSize: const Size(48, 48),
+                          minimumSize: const Size(56, 56),
                           padding: EdgeInsets.zero),
                     )
                   else
                     IconButton.filled(
                       onPressed: _seconds > 0 ? _toggleTimer : null,
-                      icon: const Icon(Icons.play_arrow, size: 28),
+                      icon: const Icon(Icons.play_arrow, size: 34),
                       style: IconButton.styleFrom(
                           backgroundColor: Colors.green,
-                          minimumSize: const Size(48, 48),
+                          minimumSize: const Size(56, 56),
                           padding: EdgeInsets.zero),
                     ),
                   const SizedBox(width: 8),
@@ -427,12 +418,12 @@ class _TimeControlButton extends StatelessWidget {
       onTap: onPressed,
       borderRadius: BorderRadius.circular(24),
       child: Container(
-        padding: const EdgeInsets.all(8),
+        padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
           color: Colors.grey.shade200,
           shape: BoxShape.circle,
         ),
-        child: Icon(icon, size: 24),
+        child: Icon(icon, size: 30),
       ),
     );
   }

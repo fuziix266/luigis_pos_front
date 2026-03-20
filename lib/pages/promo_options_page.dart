@@ -28,8 +28,6 @@ class _PromoOptionsPageState extends State<PromoOptionsPage> {
   ];
 
   bool _allowExtraPizzas = false;
-  bool _noGarlicSticks = false;
-  bool _upgradeToParmesan = false;
 
   @override
   Widget build(BuildContext context) {
@@ -360,8 +358,6 @@ class _PromoOptionsPageState extends State<PromoOptionsPage> {
     int extraPizzasCount = _pizzas.length > 2 ? _pizzas.length - 2 : 0;
     int currentTotal =
         widget.basePrice + (totalExtras * 2000) + (extraPizzasCount * 6000);
-    if (_upgradeToParmesan) currentTotal += 1000;
-    if (_noGarlicSticks) currentTotal -= 1000;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -378,65 +374,7 @@ class _PromoOptionsPageState extends State<PromoOptionsPage> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Row for Palitos Options
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: () {
-                    setState(() {
-                      _noGarlicSticks = !_noGarlicSticks;
-                      if (_noGarlicSticks) _upgradeToParmesan = false;
-                    });
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor:
-                        _noGarlicSticks ? Colors.red : Colors.grey.shade200,
-                    foregroundColor:
-                        _noGarlicSticks ? Colors.white : AppColors.textPrimary,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    elevation: 0,
-                  ),
-                  child: Text(
-                    'Sin Palitos (-\$1.000)',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: () {
-                    setState(() {
-                      _upgradeToParmesan = !_upgradeToParmesan;
-                      if (_upgradeToParmesan) _noGarlicSticks = false;
-                    });
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _upgradeToParmesan
-                        ? AppColors.primary
-                        : Colors.grey.shade200,
-                    foregroundColor: _upgradeToParmesan
-                        ? Colors.white
-                        : AppColors.textPrimary,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    elevation: 0,
-                  ),
-                  child: Text(
-                    'Palitos Parm. (+\$1.000)',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
+
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
@@ -484,14 +422,7 @@ class _PromoOptionsPageState extends State<PromoOptionsPage> {
                   return '$prefix${p.selectedIngredient}$extrasStr$exceptions$note';
                 }).toList();
 
-                if (_upgradeToParmesan) {
-                  parts.add('Palitos Parmesano');
-                } else if (_noGarlicSticks) {
-                  parts.add('Sin Palitos de ajo');
-                  allRemoved.add('Palitos de ajo');
-                } else {
-                  parts.add('Palitos de ajo');
-                }
+
 
                 Navigator.of(context).pop({
                   'description': parts.join(' | '),

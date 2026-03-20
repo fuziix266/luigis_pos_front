@@ -145,7 +145,7 @@ class _PizzaCardState extends State<PizzaCard> {
                                       _customIngredients.clear();
                                       _customIngredients.add(ingName);
                                     });
-                                    this.setState(
+                                    setState(
                                         () {}); // Update parent UI immediately
                                   },
                                   style: ElevatedButton.styleFrom(
@@ -188,7 +188,7 @@ class _PizzaCardState extends State<PizzaCard> {
                                           _customIngredients.remove(
                                               ingName); // Removes first instance
                                         });
-                                        this.setState(() {});
+                                        setState(() {});
                                       },
                                     ),
                                   if (count > 0)
@@ -203,7 +203,7 @@ class _PizzaCardState extends State<PizzaCard> {
                                       setDialogState(() {
                                         _customIngredients.add(ingName);
                                       });
-                                      this.setState(() {});
+                                      setState(() {});
                                     },
                                   ),
                                 ],
@@ -582,7 +582,7 @@ class _PizzaCardState extends State<PizzaCard> {
                                   // Update parent widget to show red text changes immediately?
                                   // setState inside dialog only updates dialog.
                                   // We also want to update the PizzaCard background if we show "Sin X"
-                                  this.setState(() {});
+                                  setState(() {});
                                 },
                               );
                             }).toList(),
@@ -623,8 +623,9 @@ class _PizzaCardState extends State<PizzaCard> {
 
   String _getSizeLabel(String sizeName) {
     final lower = sizeName.toLowerCase();
-    if (lower.contains('ind') || lower.contains('chi') || lower.contains('peq'))
+    if (lower.contains('ind') || lower.contains('chi') || lower.contains('peq')) {
       return 'C';
+    }
     if (lower.contains('med')) return 'M';
     if (lower.contains('fam')) return 'F';
     return sizeName.substring(0, 1).toUpperCase();
@@ -984,9 +985,9 @@ class _PizzaCardState extends State<PizzaCard> {
                 // Determine extra unit price based on size
                 int extraUnitPrice = 2000; // Default F
                 final sizeLabel = _getSizeLabel(sizeData['size_name']);
-                if (sizeLabel == 'C')
+                if (sizeLabel == 'C') {
                   extraUnitPrice = 900;
-                else if (sizeLabel == 'M')
+                } else if (sizeLabel == 'M')
                   extraUnitPrice = 1300;
                 else if (sizeLabel == 'F') extraUnitPrice = 2000;
 

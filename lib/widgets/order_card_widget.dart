@@ -225,28 +225,19 @@ class _OrderCardWidgetState extends State<OrderCardWidget> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Expanded(
-                  child: widget.index != null
-                      ? ReorderableDragStartListener(
+                  child: Row(
+                    children: [
+                      if (widget.index != null)
+                        ReorderableDragStartListener(
                           index: widget.index!,
-                          child: Row(
-                            children: [
-                              const Icon(Icons.drag_indicator,
-                                  color: Colors.grey, size: 20),
-                              const SizedBox(width: 4),
-                              Expanded(
-                                child: Text(
-                                  headerText,
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.black87,
-                                  ),
-                                ),
-                              ),
-                            ],
+                          child: const Padding(
+                            padding: EdgeInsets.only(right: 4),
+                            child: Icon(Icons.drag_indicator,
+                                color: Colors.grey, size: 20),
                           ),
-                        )
-                      : Text(
+                        ),
+                      Expanded(
+                        child: Text(
                           headerText,
                           style: const TextStyle(
                             fontSize: 18,
@@ -254,6 +245,9 @@ class _OrderCardWidgetState extends State<OrderCardWidget> {
                             color: Colors.black87,
                           ),
                         ),
+                      ),
+                    ],
+                  ),
                 ),
                 Row(
                   mainAxisSize: MainAxisSize.min,
@@ -323,8 +317,10 @@ class _OrderCardWidgetState extends State<OrderCardWidget> {
             ),
             const SizedBox(height: 12),
 
-            // 2. Items Container (Light Grey)
-            Container(
+            // 2. Items Container (Light Grey) - tap to expand/collapse actions
+            GestureDetector(
+              onTap: () => setState(() => _showActions = !_showActions),
+              child: Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: const Color(0xFFF8F9FA), // Light grey
@@ -489,7 +485,7 @@ class _OrderCardWidgetState extends State<OrderCardWidget> {
                                                         Colors.blue.shade400),
                                                 const SizedBox(width: 4),
                                                 Text(
-                                                  drinkLine!,
+                                                  drinkLine,
                                                   style: TextStyle(
                                                     fontSize: 13,
                                                     color: Colors.blue.shade700,
@@ -506,7 +502,7 @@ class _OrderCardWidgetState extends State<OrderCardWidget> {
                                           ),
                                         )
                                       : Text(
-                                          drinkLine!,
+                                          drinkLine,
                                           style: const TextStyle(
                                             fontSize: 13,
                                             color: Colors.black54,
@@ -561,6 +557,7 @@ class _OrderCardWidgetState extends State<OrderCardWidget> {
                   ),
                 ],
               ),
+            ),
             ),
             const SizedBox(height: 12),
 
@@ -662,29 +659,7 @@ class _OrderCardWidgetState extends State<OrderCardWidget> {
                 ],
               ),
             ),
-            const SizedBox(height: 12),
 
-            // Botón ancho inferior para expandir/colapsar acciones
-            InkWell(
-              onTap: () => setState(() => _showActions = !_showActions),
-              borderRadius: BorderRadius.circular(8),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.grey.shade300, width: 1.0),
-                ),
-                child: Icon(
-                  _showActions
-                      ? Icons.keyboard_arrow_up
-                      : Icons.keyboard_arrow_down,
-                  color: Colors.black54,
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
 
             AnimatedCrossFade(
               duration: const Duration(milliseconds: 300),
@@ -1205,6 +1180,39 @@ class _OrderCardWidgetState extends State<OrderCardWidget> {
             }),
 
             const SizedBox(height: 4),
+
+            // Notes/Comment for kitchen
+            if ((widget.order['notes'] ?? '').toString().isNotEmpty) ...[
+              Container(
+                width: double.infinity,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.amber.shade100,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.amber.shade400, width: 1.5),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.comment,
+                        size: 16, color: Colors.amber.shade800),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        widget.order['notes'].toString(),
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.amber.shade900,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
 
             // Status Buttons Row
             Row(

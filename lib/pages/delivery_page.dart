@@ -209,7 +209,12 @@ class _DeliveryPageState extends State<DeliveryPage> {
           final orders = state.orders;
           int totalDeliveryFees = 0;
           for (var o in orders) {
-            if (o['status'] == 'ENTREGADO') {
+            // Count delivery fee if the order went through the delivery flow:
+            // has time_pickup (RETIRADO/EN_CAMINO) or is ENTREGADO
+            final hasPickup = o['time_pickup'] != null &&
+                o['time_pickup'].toString().isNotEmpty;
+            final isDelivered = o['status'] == 'ENTREGADO';
+            if (hasPickup || isDelivered) {
               totalDeliveryFees += (o['delivery_fee'] as num? ?? 0).toInt();
             }
           }
@@ -431,6 +436,28 @@ class _DeliveryPageState extends State<DeliveryPage> {
                   ),
                 ],
               ),
+              if ((order['address_detail'] ?? '').toString().isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    const SizedBox(width: 24), // align with address text
+                    Icon(Icons.home_outlined,
+                        size: 16, color: Colors.blue.shade400),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        order['address_detail'].toString(),
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.blue.shade700,
+                          fontStyle: FontStyle.italic,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
               const SizedBox(height: 8),
             ],
 
