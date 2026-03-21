@@ -581,7 +581,9 @@ class _HistoryPageState extends State<HistoryPage> {
     if (startTime == null ||
         endTime == null ||
         startTime.isEmpty ||
-        endTime.isEmpty) return '';
+        endTime.isEmpty) {
+      return '';
+    }
     try {
       final start = DateTime.parse(startTime);
       final end = DateTime.parse(endTime);

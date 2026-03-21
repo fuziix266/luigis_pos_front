@@ -1,7 +1,10 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:dio/dio.dart';
 import '../blocs/catalog/catalog_bloc.dart';
+import '../data/api_client.dart';
 import '../config/theme.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter/services.dart';
@@ -1359,12 +1362,123 @@ class _OrderCardWidgetState extends State<OrderCardWidget> {
     }
   }
 
+  // ==========================================
+  // GEOCODING / ZONE DETECTION HELPERS
+  // ==========================================
+
+  static bool _isPointInPolygon(double lat, double lng, List<List<double>> polygon) {
+    bool c = false;
+    for (int i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+      if (((polygon[i][1] > lng) != (polygon[j][1] > lng)) &&
+          (lat <
+              (polygon[j][0] - polygon[i][0]) *
+                      (lng - polygon[i][1]) /
+                      (polygon[j][1] - polygon[i][1]) +
+                  polygon[i][0])) {
+        c = !c;
+      }
+    }
+    return c;
+  }
+
+  static int _feeFromZone(String zone) {
+    if (zone.contains('4.000')) return 4000;
+    if (zone.contains('3.500')) return 3500;
+    return 3000;
+  }
+
+  static Future<String> _geocodeForZone(String address) async {
+    String zone = 'Base (\$3.000)';
+    if (address.length < 5) return zone;
+
+    try {
+      final dio = Dio();
+      const url = '${ApiClient.baseUrl}/api/delivery/geocode';
+      final response = await dio.post(url,
+          data: {'address': address},
+          options: Options(
+            headers: {'Content-Type': 'application/json'},
+            validateStatus: (status) => true,
+          ));
+
+      final rawData = response.data;
+      final Map<String, dynamic>? responseMap = (rawData is String)
+          ? jsonDecode(rawData)
+          : rawData as Map<String, dynamic>?;
+
+      if (responseMap != null && responseMap['success'] == true) {
+        final data = responseMap['data'];
+        final lat = double.tryParse(data['lat']?.toString() ?? '0') ?? 0.0;
+        final lng = double.tryParse(data['lng']?.toString() ?? '0') ?? 0.0;
+
+        final zone3500 = <List<double>>[
+          [-18.442889, -70.282444],
+          [-18.444583, -70.299083],
+          [-18.426583, -70.296944],
+          [-18.426361, -70.281167],
+        ];
+        final zone4000 = <List<double>>[
+          [-18.425806, -70.295000],
+          [-18.425889, -70.287556],
+          [-18.421056, -70.287583],
+          [-18.421056, -70.295806],
+        ];
+
+        if (lat != 0.0 || lng != 0.0) {
+          if (_isPointInPolygon(lat, lng, zone4000)) {
+            zone = 'Pasado Capitán Ávalos/Interior (\$4.000)';
+          } else if (_isPointInPolygon(lat, lng, zone3500)) {
+            zone = 'Norte/Pasado Yerbas Buenas (\$3.500)';
+          }
+        }
+      }
+    } catch (e) {
+      print('Geocoding error: $e');
+    }
+
+    // Keyword fallback
+    if (zone == 'Base (\$3.000)') {
+      final lower = address.toLowerCase();
+      if (lower.contains('avalos') ||
+          lower.contains('ávalos') ||
+          lower.contains('capitan') ||
+          lower.contains('capitán') ||
+          lower.contains('interior') ||
+          lower.contains('cerro') ||
+          lower.contains('lluta') ||
+          lower.contains('azapa')) {
+        zone = 'Pasado Capitán Ávalos/Interior (\$4.000)';
+      } else if (lower.contains('yerbas buenas') || lower.contains('norte')) {
+        zone = 'Norte/Pasado Yerbas Buenas (\$3.500)';
+      }
+    }
+
+    return zone;
+  }
+
+  // ==========================================
+  // DATOS DIALOG
+  // ==========================================
+
   void _showClientData(BuildContext context) {
     String name = widget.order['client_name']?.toString() ?? '';
     String phone = widget.order['phone']?.toString() ?? '';
     String address = widget.order['delivery_address']?.toString() ?? '';
     String payMethod = widget.order['payment_method'] ?? 'Efectivo';
     String delType = widget.order['delivery_type'] ?? 'Local';
+
+    // Geocoding state
+    String detectedZone = 'Base (\$3.000)';
+    bool isGeocoding = false;
+    Timer? geocodeDebounce;
+
+    // Detect initial zone from existing delivery_fee
+    final currentFee = (widget.order['delivery_fee'] as num?)?.toInt() ?? 0;
+    if (currentFee >= 4000) {
+      detectedZone = 'Pasado Capitán Ávalos/Interior (\$4.000)';
+    } else if (currentFee >= 3500) {
+      detectedZone = 'Norte/Pasado Yerbas Buenas (\$3.500)';
+    }
 
     final nameCtrl = TextEditingController(text: name);
     final phoneCtrl = TextEditingController(text: phone);
@@ -1373,7 +1487,25 @@ class _OrderCardWidgetState extends State<OrderCardWidget> {
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
-        builder: (context, setState) {
+        builder: (context, setDialogState) {
+
+          void onAddressChanged(String value) {
+            address = value;
+            geocodeDebounce?.cancel();
+            if (value.length >= 5 && delType == 'Delivery') {
+              setDialogState(() => isGeocoding = true);
+              geocodeDebounce = Timer(const Duration(milliseconds: 800), () async {
+                final zone = await _geocodeForZone(value);
+                if (ctx.mounted) {
+                  setDialogState(() {
+                    detectedZone = zone;
+                    isGeocoding = false;
+                  });
+                }
+              });
+            }
+          }
+
           return AlertDialog(
             title: const Text('Editar Datos Cliente'),
             content: SingleChildScrollView(
@@ -1392,7 +1524,7 @@ class _OrderCardWidgetState extends State<OrderCardWidget> {
                                 await Clipboard.getData(Clipboard.kTextPlain);
                             if (data?.text != null) {
                               nameCtrl.text = data!.text!;
-                              setState(() => name = data.text!);
+                              setDialogState(() => name = data.text!);
                             }
                           } catch (e) {
                             if (ctx.mounted) {
@@ -1421,7 +1553,7 @@ class _OrderCardWidgetState extends State<OrderCardWidget> {
                                 await Clipboard.getData(Clipboard.kTextPlain);
                             if (data?.text != null) {
                               phoneCtrl.text = data!.text!;
-                              setState(() => phone = data.text!);
+                              setDialogState(() => phone = data.text!);
                             }
                           } catch (e) {
                             if (ctx.mounted) {
@@ -1459,7 +1591,13 @@ class _OrderCardWidgetState extends State<OrderCardWidget> {
                     ]
                         .map((e) => DropdownMenuItem(value: e, child: Text(e)))
                         .toList(),
-                    onChanged: (v) => setState(() => delType = v!),
+                    onChanged: (v) {
+                      setDialogState(() => delType = v!);
+                      // Trigger geocoding if switching to Delivery and address exists
+                      if (v == 'Delivery' && address.length >= 5) {
+                        onAddressChanged(address);
+                      }
+                    },
                   ),
                   const SizedBox(height: 12),
                   if (delType == 'Delivery')
@@ -1467,31 +1605,99 @@ class _OrderCardWidgetState extends State<OrderCardWidget> {
                       controller: addressCtrl,
                       decoration: InputDecoration(
                         labelText: 'Dirección',
-                        suffixIcon: IconButton(
-                          icon: const Icon(Icons.paste, size: 20),
-                          onPressed: () async {
-                            try {
-                              final data =
-                                  await Clipboard.getData(Clipboard.kTextPlain);
-                              if (data?.text != null) {
-                                addressCtrl.text = data!.text!;
-                                setState(() => address = data.text!);
-                              }
-                            } catch (e) {
-                              if (ctx.mounted) {
-                                ScaffoldMessenger.of(ctx).showSnackBar(
-                                  const SnackBar(
-                                      content: Text(
-                                          'Por HTTP usa Pegar de sistema (Mantén presionado -> Pegar o Ctrl+V)')),
-                                );
-                              }
-                            }
-                          },
+                        suffixIcon: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (isGeocoding)
+                              const Padding(
+                                padding: EdgeInsets.only(right: 8),
+                                child: SizedBox(
+                                  width: 16, height: 16,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                ),
+                              ),
+                            IconButton(
+                              icon: const Icon(Icons.paste, size: 20),
+                              onPressed: () async {
+                                try {
+                                  final data =
+                                      await Clipboard.getData(Clipboard.kTextPlain);
+                                  if (data?.text != null) {
+                                    addressCtrl.text = data!.text!;
+                                    onAddressChanged(data.text!);
+                                  }
+                                } catch (e) {
+                                  if (ctx.mounted) {
+                                    ScaffoldMessenger.of(ctx).showSnackBar(
+                                      const SnackBar(
+                                          content: Text(
+                                              'Por HTTP usa Pegar de sistema (Mantén presionado -> Pegar o Ctrl+V)')),
+                                    );
+                                  }
+                                }
+                              },
+                            ),
+                          ],
                         ),
                       ),
-                      onChanged: (v) => address = v,
+                      onChanged: onAddressChanged,
                     ),
-                  if (delType == 'Delivery') const SizedBox(height: 12),
+                  if (delType == 'Delivery') ...[
+                    const SizedBox(height: 8),
+                    // Zone indicator chip
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: detectedZone.contains('3.000')
+                            ? Colors.green.shade50
+                            : detectedZone.contains('3.500')
+                                ? Colors.orange.shade50
+                                : Colors.red.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: detectedZone.contains('3.000')
+                              ? Colors.green.shade300
+                              : detectedZone.contains('3.500')
+                                  ? Colors.orange.shade300
+                                  : Colors.red.shade300,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.location_on,
+                            size: 18,
+                            color: detectedZone.contains('3.000')
+                                ? Colors.green
+                                : detectedZone.contains('3.500')
+                                    ? Colors.orange
+                                    : Colors.red,
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              'Envío: \$${_feeFromZone(detectedZone).toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                                color: detectedZone.contains('3.000')
+                                    ? Colors.green.shade700
+                                    : detectedZone.contains('3.500')
+                                        ? Colors.orange.shade700
+                                        : Colors.red.shade700,
+                              ),
+                            ),
+                          ),
+                          Text(
+                            detectedZone.split('(').first.trim(),
+                            style: const TextStyle(fontSize: 11, color: Colors.grey),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
                   DropdownButtonFormField<String>(
                     value: ['Efectivo', 'Transferencia', 'Tarjeta']
                             .contains(payMethod)
@@ -1501,17 +1707,22 @@ class _OrderCardWidgetState extends State<OrderCardWidget> {
                     items: ['Efectivo', 'Transferencia', 'Tarjeta']
                         .map((e) => DropdownMenuItem(value: e, child: Text(e)))
                         .toList(),
-                    onChanged: (v) => setState(() => payMethod = v!),
+                    onChanged: (v) => setDialogState(() => payMethod = v!),
                   ),
                 ],
               ),
             ),
             actions: [
               TextButton(
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: () {
+                    geocodeDebounce?.cancel();
+                    Navigator.pop(context);
+                  },
                   child: const Text('CANCELAR')),
               ElevatedButton(
                 onPressed: () {
+                  geocodeDebounce?.cancel();
+
                   final updatedOrder = Map<String, dynamic>.from(widget.order);
                   updatedOrder['client_name'] = name;
                   updatedOrder['phone'] = phone;
@@ -1519,8 +1730,26 @@ class _OrderCardWidgetState extends State<OrderCardWidget> {
                   updatedOrder['delivery_type'] = delType;
                   updatedOrder['payment_method'] = payMethod;
 
-                  // Keep items valid, backend might need them or not, but UpdateOrder usually sends full object or partial.
-                  // OrdersBloc uses apiClient.updateOrder(id, data).
+                  // Update delivery_fee item based on detected zone
+                  if (delType == 'Delivery' && updatedOrder['items'] != null) {
+                    final newFee = _feeFromZone(detectedZone);
+                    final items = List<Map<String, dynamic>>.from(
+                      (updatedOrder['items'] as List).map((e) => Map<String, dynamic>.from(e as Map)),
+                    );
+
+                    // Remove existing delivery_fee item
+                    items.removeWhere((item) => item['item_type'] == 'delivery_fee');
+
+                    // Add updated delivery_fee item
+                    items.add({
+                      'item_name': 'Envío',
+                      'item_type': 'delivery_fee',
+                      'unit_price': newFee,
+                      'quantity': 1,
+                    });
+
+                    updatedOrder['items'] = items;
+                  }
 
                   widget.onUpdate
                       ?.call(widget.order['id'] as int, updatedOrder);

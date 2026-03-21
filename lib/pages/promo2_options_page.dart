@@ -200,7 +200,7 @@ class _Promo2OptionsPageState extends State<Promo2OptionsPage> {
                               ),
                               elevation: _noGarlicSticks ? 2 : 0,
                             ),
-                            child: Text(
+                            child: const Text(
                               'Sin Palitos (-\$1.000)',
                               style: TextStyle(
                                   fontSize: 14, fontWeight: FontWeight.bold),
@@ -231,7 +231,7 @@ class _Promo2OptionsPageState extends State<Promo2OptionsPage> {
                               ),
                               elevation: _upgradeToParmesan ? 2 : 0,
                             ),
-                            child: Text(
+                            child: const Text(
                               'Palitos Parm. (+\$1.000)',
                               style: TextStyle(
                                   fontSize: 14, fontWeight: FontWeight.bold),

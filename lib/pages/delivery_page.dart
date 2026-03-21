@@ -269,57 +269,177 @@ class _DeliveryPageState extends State<DeliveryPage> {
                   itemBuilder: (context, i) {
                     final order = orders[i];
                     final isDeleted = order['status'] == 'ELIMINADO';
+                    final orderNum = int.tryParse(order['order_number']?.toString() ?? '') ?? order['order_number'];
+                    final clientName = (order['client_name'] ?? '').toString();
+                    final phone = (order['phone'] ?? '').toString();
+                    final address = (order['delivery_address'] ?? '').toString();
+                    final deliveryFee = (order['delivery_fee'] as num? ?? 0).toInt();
+                    final items = (order['items'] as List? ?? []).where((item) {
+                      final type = (item['item_type'] ?? '').toString();
+                      return type != 'delivery_fee';
+                    }).toList();
+                    final timeStr = _formatTime(order['time_delivered'] ?? order['time_created'] ?? '');
+
                     return Card(
                       margin: const EdgeInsets.only(bottom: 8),
                       color: isDeleted ? Colors.red.shade50 : null,
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor:
-                              isDeleted ? Colors.red : AppColors.success,
-                          child: Icon(
-                            isDeleted ? Icons.delete_forever : Icons.check,
-                            color: Colors.white,
-                          ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: BorderSide(
+                          color: isDeleted ? Colors.red.shade200 : Colors.grey.shade200,
                         ),
-                        title: Row(
-                          children: [
-                            Text(
-                              '${int.tryParse(order['order_number']?.toString() ?? '') ?? order['order_number']} - ${order['client_name']}',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                decoration: isDeleted
-                                    ? TextDecoration.lineThrough
-                                    : null,
-                              ),
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: Theme(
+                        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                        child: ExpansionTile(
+                          tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                          childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                          leading: CircleAvatar(
+                            radius: 18,
+                            backgroundColor: isDeleted ? Colors.red : AppColors.success,
+                            child: Icon(
+                              isDeleted ? Icons.delete_forever : Icons.check,
+                              color: Colors.white,
+                              size: 20,
                             ),
-                            if (isDeleted) ...[
-                              const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: Colors.red,
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: const Text(
-                                  'CANCELADO',
+                          ),
+                          title: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  '$orderNum - $clientName',
                                   style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 10,
                                     fontWeight: FontWeight.bold,
+                                    fontSize: 15,
+                                    decoration: isDeleted ? TextDecoration.lineThrough : null,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              if (isDeleted)
+                                Container(
+                                  margin: const EdgeInsets.only(left: 6),
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.red,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: const Text(
+                                    'CANCELADO',
+                                    style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
                                   ),
                                 ),
+                            ],
+                          ),
+                          subtitle: Row(
+                            children: [
+                              Text(
+                                'Envío: \$${_formatPrice(deliveryFee)}',
+                                style: TextStyle(
+                                  color: deliveryFee > 0 ? AppColors.success : Colors.red,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              const Spacer(),
+                              Text(
+                                timeStr,
+                                style: const TextStyle(color: Colors.grey, fontSize: 13),
                               ),
                             ],
+                          ),
+                          children: [
+                            // Phone
+                            if (phone.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 6),
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.phone, size: 16, color: Colors.blue.shade400),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      phone,
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.blue.shade700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            // Address
+                            if (address.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 8),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Icon(Icons.location_on, size: 16, color: Colors.red.shade400),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        address,
+                                        style: const TextStyle(fontSize: 13, color: Colors.black87),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            // Products
+                            if (items.isNotEmpty) ...[
+                              const Divider(height: 12),
+                              ...items.map((item) {
+                                final qty = (item['quantity'] as num? ?? 1).toInt();
+                                final itemName = item['item_name'] ?? '';
+                                final comments = (item['comments'] ?? item['details'] ?? '').toString();
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 4),
+                                  child: Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      SizedBox(
+                                        width: 28,
+                                        child: Text(
+                                          '${qty}x',
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13,
+                                            color: Colors.orange,
+                                          ),
+                                        ),
+                                      ),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              itemName,
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.w600,
+                                                fontSize: 13,
+                                              ),
+                                            ),
+                                            if (comments.isNotEmpty)
+                                              Text(
+                                                comments,
+                                                style: const TextStyle(
+                                                  fontSize: 11,
+                                                  color: Colors.grey,
+                                                ),
+                                                maxLines: 2,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }),
+                            ],
                           ],
-                        ),
-                        subtitle: Text(
-                            'Envío: \$${_formatPrice(order['delivery_fee'] ?? 0)}'),
-                        trailing: Text(
-                          _formatTime(order['time_delivered'] ??
-                              order['time_created'] ??
-                              ''),
-                          style: const TextStyle(color: Colors.grey),
                         ),
                       ),
                     );
