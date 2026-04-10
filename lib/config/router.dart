@@ -8,6 +8,7 @@ import '../pages/delivery_page.dart';
 import '../pages/history_page.dart';
 
 import '../pages/scheduled_orders_page.dart';
+import '../pages/settings_page.dart';
 
 final GoRouter appRouter = GoRouter(
   initialLocation: '/login',
@@ -27,5 +28,6 @@ final GoRouter appRouter = GoRouter(
     GoRoute(path: '/kitchen', builder: (_, __) => const KitchenPage()),
     GoRoute(path: '/delivery', builder: (_, __) => const DeliveryPage()),
     GoRoute(path: '/history', builder: (_, __) => const HistoryPage()),
+    GoRoute(path: '/settings', builder: (_, __) => const SettingsPage()),
   ],
 );

@@ -32,10 +32,15 @@ class _NewOrderPageState extends State<NewOrderPage>
   String _address = '';
   String _addressDetail = '';
   String _notes = '';
-  String _deliveryZone = 'Base (\$3.000)';
+  String _deliveryZone = 'Base (3000)';
   bool _userChangedZoneManually = false;
   Timer? _debounce;
   bool _isGeocoding = false;
+  Map<String, dynamic> _systemConfig = {};
+
+  int get _feeBase => int.tryParse(_systemConfig['delivery_base_fee']?['value']?.toString() ?? '3000') ?? 3000;
+  int get _feeZone2 => int.tryParse(_systemConfig['delivery_zone2_fee']?['value']?.toString() ?? '3500') ?? 3500;
+  int get _feeZone3 => int.tryParse(_systemConfig['delivery_zone3_fee']?['value']?.toString() ?? '4000') ?? 4000;
 
   bool _isPointInPolygon(double lat, double lng, List<List<double>> polygon) {
     bool c = false;
@@ -70,7 +75,7 @@ class _NewOrderPageState extends State<NewOrderPage>
             validateStatus: (status) => true,
           ));
 
-      String newZone = 'Base (\$3.000)';
+      String newZone = 'Base';
 
       final rawData = response.data;
       final Map<String, dynamic>? responseMap = (rawData is String)
@@ -81,7 +86,7 @@ class _NewOrderPageState extends State<NewOrderPage>
         final data = responseMap['data'];
         final lat = double.tryParse(data['lat']?.toString() ?? '0') ?? 0.0;
         final lng = double.tryParse(data['lng']?.toString() ?? '0') ?? 0.0;
-        print("Backend Proxy Geocoded [\$address] -> lat: \$lat, lng: \$lng");
+        print("Backend Proxy Geocoded [$address] -> lat: $lat, lng: $lng");
 
         final zone3500 = <List<double>>[
           [-18.442889, -70.282444],
@@ -100,22 +105,22 @@ class _NewOrderPageState extends State<NewOrderPage>
         // Validar si retornó algo en null
         if (lat == 0.0 && lng == 0.0) {
           print("API returned 0.0/null for lat/lng");
-          newZone = 'Base (\$3.000)';
+          newZone = 'Base ($_feeBase)';
         } else if (_isPointInPolygon(lat, lng, zone4000)) {
-          print("Inside 4000 zone");
-          newZone = 'Pasado Capitán Ávalos/Interior (\$4.000)';
+          print("Inside zone3");
+          newZone = 'Pasado Capitán Ávalos/Interior ($_feeZone3)';
         } else if (_isPointInPolygon(lat, lng, zone3500)) {
-          print("Inside 3500 zone");
-          newZone = 'Norte/Pasado Yerbas Buenas (\$3.500)';
+          print("Inside zone2");
+          newZone = 'Norte/Pasado Yerbas Buenas ($_feeZone2)';
         } else {
-          print("Not inside any polygon");
+          newZone = 'Base ($_feeBase)';
         }
       } else {
-        print("No geocode result from proxy for \$address");
+        print("No geocode result from proxy for $address");
       }
 
       // Keyword fallback logic
-      if (newZone == 'Base (\$3.000)') {
+      if (newZone.startsWith('Base')) {
         final lower = address.toLowerCase();
         if (lower.contains('avalos') ||
             lower.contains('ávalos') ||
@@ -125,22 +130,24 @@ class _NewOrderPageState extends State<NewOrderPage>
             lower.contains('cerro') ||
             lower.contains('lluta') ||
             lower.contains('azapa')) {
-          newZone = 'Pasado Capitán Ávalos/Interior (\$4.000)';
+          newZone = 'Pasado Capitán Ávalos/Interior ($_feeZone3)';
         } else if (lower.contains('yerbas buenas') || lower.contains('norte')) {
-          newZone = 'Norte/Pasado Yerbas Buenas (\$3.500)';
+          newZone = 'Norte/Pasado Yerbas Buenas ($_feeZone2)';
+        } else {
+          newZone = 'Base ($_feeBase)';
         }
       }
 
-      print("Final Zone: \$newZone");
+      print("Final Zone: $newZone");
 
       if (mounted) {
         // VISUAL DEBUG ACTIVATED FOR USER
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text("MAPA: \$newZone"),
+            content: Text("MAPA: $newZone"),
             duration: const Duration(seconds: 4),
             backgroundColor:
-                newZone.contains('3.000') ? Colors.orange : Colors.blue,
+                newZone.contains(_feeBase.toString()) ? Colors.blue : Colors.orange,
           ),
         );
 
@@ -172,9 +179,12 @@ class _NewOrderPageState extends State<NewOrderPage>
 
     if (_deliveryType != 'Delivery') return;
 
-    int fee = 3000;
-    if (_deliveryZone.contains('3.500')) fee = 3500;
-    if (_deliveryZone.contains('4.000')) fee = 4000;
+    int fee = _feeBase;
+    if (_deliveryZone.contains(_feeZone3.toString())) {
+      fee = _feeZone3;
+    } else if (_deliveryZone.contains(_feeZone2.toString())) {
+      fee = _feeZone2;
+    }
 
     _cartItems.add({
       'item_name': 'Envío',
@@ -188,9 +198,27 @@ class _NewOrderPageState extends State<NewOrderPage>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _loadConfig();
 
     if (widget.existingOrder != null) {
       _loadExistingOrder();
+    }
+  }
+
+  Future<void> _loadConfig() async {
+    try {
+      final config = await ApiClient().getConfig();
+      if (mounted) {
+        setState(() {
+          _systemConfig = config;
+          if (_deliveryZone.startsWith('Base')) {
+             _deliveryZone = 'Base ($_feeBase)';
+             _updateDeliveryFee();
+          }
+        });
+      }
+    } catch (e) {
+      print("Error fetching config: $e");
     }
   }
 
@@ -210,11 +238,11 @@ class _NewOrderPageState extends State<NewOrderPage>
         _userChangedZoneManually = true; // prevent auto-override on load
         final fee = item['unit_price'] as int;
         if (fee >= 4000) {
-          _deliveryZone = 'Pasado Capitán Ávalos/Interior (\$4.000)';
+          _deliveryZone = 'Pasado Capitán Ávalos/Interior ($_feeZone3)';
         } else if (fee >= 3500) {
-          _deliveryZone = 'Norte/Pasado Yerbas Buenas (\$3.500)';
+          _deliveryZone = 'Norte/Pasado Yerbas Buenas ($_feeZone2)';
         } else {
-          _deliveryZone = 'Base (\$3.000)';
+          _deliveryZone = 'Base ($_feeBase)';
         }
       }
 
@@ -1483,7 +1511,7 @@ class _NewOrderPageState extends State<NewOrderPage>
                                     // Trigger the same zone detection logic as onChanged
                                     if (!_userChangedZoneManually) {
                                       final lower = pastedText.toLowerCase();
-                                      String newZone = 'Base (\$3.000)';
+                                      String newZone = 'Base ($_feeBase)';
 
                                       if (lower.contains('avalos') ||
                                           lower.contains('ávalos') ||
@@ -1494,10 +1522,10 @@ class _NewOrderPageState extends State<NewOrderPage>
                                           lower.contains('lluta') ||
                                           lower.contains('azapa')) {
                                         newZone =
-                                            'Pasado Capitán Ávalos/Interior (\$4.000)';
+                                            'Pasado Capitán Ávalos/Interior ($_feeZone3)';
                                       } else if (lower.contains('yerbas buenas') ||
                                           lower.contains('norte')) {
-                                        newZone = 'Norte/Pasado Yerbas Buenas (\$3.500)';
+                                        newZone = 'Norte/Pasado Yerbas Buenas ($_feeZone2)';
                                       }
 
                                       if (_deliveryZone != newZone) {
@@ -1541,7 +1569,7 @@ class _NewOrderPageState extends State<NewOrderPage>
 
                           // Fast keyword fallback first
                           final lower = v.toLowerCase();
-                          String newZone = 'Base (\$3.000)';
+                          String newZone = 'Base ($_feeBase)';
 
                           if (lower.contains('avalos') ||
                               lower.contains('ávalos') ||
@@ -1552,10 +1580,10 @@ class _NewOrderPageState extends State<NewOrderPage>
                               lower.contains('lluta') ||
                               lower.contains('azapa')) {
                             newZone =
-                                'Pasado Capitán Ávalos/Interior (\$4.000)';
+                                'Pasado Capitán Ávalos/Interior ($_feeZone3)';
                           } else if (lower.contains('yerbas buenas') ||
                               lower.contains('norte')) {
-                            newZone = 'Norte/Pasado Yerbas Buenas (\$3.500)';
+                            newZone = 'Norte/Pasado Yerbas Buenas ($_feeZone2)';
                           }
 
                           if (_deliveryZone != newZone) {
@@ -1587,9 +1615,9 @@ class _NewOrderPageState extends State<NewOrderPage>
                         prefixIcon: Icon(Icons.map),
                       ),
                       items: [
-                        'Base (\$3.000)',
-                        'Norte/Pasado Yerbas Buenas (\$3.500)',
-                        'Pasado Capitán Ávalos/Interior (\$4.000)'
+                        'Base ($_feeBase)',
+                        'Norte/Pasado Yerbas Buenas ($_feeZone2)',
+                        'Pasado Capitán Ávalos/Interior ($_feeZone3)'
                       ]
                           .map((e) => DropdownMenuItem(
                               value: e,
@@ -2010,7 +2038,8 @@ class _NewOrderPageState extends State<NewOrderPage>
           ),
           ElevatedButton(
             onPressed: () {
-              final val = int.tryParse(txtController.text.trim());
+              final text = txtController.text.trim();
+              final val = int.tryParse(text.isEmpty ? '0' : text);
               if (val != null) {
                 setParentState(() {
                   _manualSubtotal = val;

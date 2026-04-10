@@ -59,9 +59,20 @@ class HomePage extends StatelessWidget {
                       BlocBuilder<AuthBloc, AuthState>(
                         builder: (context, state) {
                           if (state is AuthAuthenticated) {
-                            return Chip(
-                              avatar: const Icon(Icons.person, size: 18),
-                              label: Text(state.user['full_name'] ?? ''),
+                            return Row(
+                              children: [
+                                Chip(
+                                  avatar: const Icon(Icons.person, size: 18),
+                                  label: Text(state.user['full_name'] ?? ''),
+                                ),
+                                const SizedBox(width: 8),
+                                if (state.user['role'] == 'ADMIN' || state.user['role'] == 'admin' || state.user['full_name'] == 'Administrador')
+                                  IconButton(
+                                    icon: const Icon(Icons.settings, color: Colors.white70),
+                                    onPressed: () => context.go('/settings'),
+                                    tooltip: 'Configuración',
+                                  ),
+                              ],
                             );
                           }
                           return const SizedBox.shrink();

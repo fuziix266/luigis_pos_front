@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
@@ -227,10 +228,9 @@ class _DeliveryPageState extends State<DeliveryPage> {
                   const Icon(Icons.history, size: 64, color: Colors.grey),
                   const SizedBox(height: 16),
                   Text(
-                    'No hay repartos registrados ' +
-                        (_selectedDateRange.start == _selectedDateRange.end
+                    'No hay repartos registrados ${_selectedDateRange.start == _selectedDateRange.end
                             ? 'el ${DateFormat('dd/MM/yyyy').format(_selectedDateRange.start)}'
-                            : 'entre el ${DateFormat('dd/MM/yyyy').format(_selectedDateRange.start)} y el ${DateFormat('dd/MM/yyyy').format(_selectedDateRange.end)}'),
+                            : 'entre el ${DateFormat('dd/MM/yyyy').format(_selectedDateRange.start)} y el ${DateFormat('dd/MM/yyyy').format(_selectedDateRange.end)}'}',
                     style: const TextStyle(color: Colors.grey, fontSize: 16),
                     textAlign: TextAlign.center,
                   ),
@@ -743,11 +743,11 @@ class _DeliveryPageState extends State<DeliveryPage> {
         const Color(0xFF1565C0),
       ));
     } else if (status == 'EN_CAMINO') {
-      buttons.add(_statusButton(
-        'ENTREGADO',
-        Icons.done_all,
-        orderId,
-        const Color(0xFF2E7D32), // Green
+      buttons.add(_ConfirmableStatusButton(
+        orderId: orderId,
+        status: 'ENTREGADO',
+        icon: Icons.done_all,
+        color: const Color(0xFF2E7D32), // Green
       ));
     }
 
@@ -1064,6 +1064,71 @@ class _ChangeCalculatorDialogState extends State<_ChangeCalculatorDialog> {
           child: const Text('Cerrar'),
         ),
       ],
+    );
+  }
+}
+
+class _ConfirmableStatusButton extends StatefulWidget {
+  final int orderId;
+  final String status;
+  final IconData icon;
+  final Color color;
+
+  const _ConfirmableStatusButton({
+    required this.orderId,
+    required this.status,
+    required this.icon,
+    required this.color,
+  });
+
+  @override
+  State<_ConfirmableStatusButton> createState() => _ConfirmableStatusButtonState();
+}
+
+class _ConfirmableStatusButtonState extends State<_ConfirmableStatusButton> {
+  bool _isConfirming = false;
+  Timer? _timer;
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  void _handleTap() {
+    if (!_isConfirming) {
+      // Pedir confirmación
+      setState(() {
+        _isConfirming = true;
+      });
+      _timer?.cancel();
+      // Volver a la normalidad si no confirma en 4 segundos
+      _timer = Timer(const Duration(seconds: 4), () {
+        if (mounted) {
+          setState(() {
+            _isConfirming = false;
+          });
+        }
+      });
+    } else {
+      // Confirmado
+      _timer?.cancel();
+      context.read<OrdersBloc>().add(UpdateOrderStatus(widget.orderId, widget.status));
+      setState(() {
+        _isConfirming = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ElevatedButton.icon(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: _isConfirming ? Colors.orange.shade800 : widget.color,
+      ),
+      onPressed: _handleTap,
+      icon: Icon(_isConfirming ? Icons.help_outline : widget.icon),
+      label: Text(_isConfirming ? '¿Confirmar?' : AppColors.getStatusLabel(widget.status)),
     );
   }
 }

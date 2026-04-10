@@ -99,6 +99,13 @@ class ApiClient {
     return _ensureMap(response.data)['data'];
   }
 
+  Future<void> updatePrices(List<Map<String, dynamic>> updates) async {
+    await _dio.post(
+      '/api/catalog/update-prices',
+      data: {'updates': updates},
+    );
+  }
+
   // ===== ORDERS =====
   Future<List<dynamic>> getActiveOrders() async {
     final response = await _dio.get('/api/orders');

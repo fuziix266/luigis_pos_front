@@ -1805,7 +1805,8 @@ class _OrderCardWidgetState extends State<OrderCardWidget> {
           ),
           ElevatedButton(
             onPressed: () {
-              final val = int.tryParse(txtController.text.trim());
+              final text = txtController.text.trim();
+              final val = int.tryParse(text.isEmpty ? '0' : text);
               if (val != null) {
                 final updatedOrder = Map<String, dynamic>.from(widget.order);
                 updatedOrder['manual_total'] = val;
