@@ -34,7 +34,7 @@ class SoundService {
       _activeAlarms++;
       if (_activeAlarms == 1) {
         await _alertPlayer.setReleaseMode(ReleaseMode.loop);
-        await _alertPlayer.play(AssetSource('sounds/SonidoTemporizador.mp3'));
+        await _alertPlayer.play(AssetSource('sounds/NuevoSonidoTemporizador.mp3'));
       }
     } catch (e) {
       print('Error reproduciendo alarma: $e');
