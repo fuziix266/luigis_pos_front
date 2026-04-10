@@ -611,9 +611,13 @@ class _DeliveryPageState extends State<DeliveryPage> {
                     color: const Color(0xFF4285F4), // Google blue
                     tooltip: 'Google Maps',
                     onTap: () {
-                      final q = Uri.encodeComponent('$address, Arica, Chile');
-                      launchUrl(Uri.parse(
-                          'https://www.google.com/maps/search/?api=1&query=$q'));
+                      var addr = address.trim();
+                      if (addr.toLowerCase().startsWith('http://') || addr.toLowerCase().startsWith('https://')) {
+                         launchUrl(Uri.parse(addr), mode: LaunchMode.externalApplication);
+                      } else {
+                         final q = Uri.encodeComponent('$addr, Arica, Chile');
+                         launchUrl(Uri.parse('https://www.google.com/maps/search/?api=1&query=$q'), mode: LaunchMode.externalApplication);
+                      }
                     },
                   ),
                   const SizedBox(width: 10),

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:dio/dio.dart';
 import '../blocs/catalog/catalog_bloc.dart';
@@ -646,14 +647,23 @@ class _OrderCardWidgetState extends State<OrderCardWidget> {
                             size: 14, color: Colors.red),
                         const SizedBox(width: 4),
                         Expanded(
-                          child: Text(
-                            widget.order['delivery_address'].toString(),
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: Colors.black87,
+                          child: InkWell(
+                            onTap: () async {
+                              final text = widget.order['delivery_address'].toString().trim();
+                              if (text.toLowerCase().startsWith('http://') || text.toLowerCase().startsWith('https://')) {
+                                  launchUrl(Uri.parse(text), mode: LaunchMode.externalApplication);
+                              }
+                            },
+                            child: Text(
+                              widget.order['delivery_address'].toString(),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: widget.order['delivery_address'].toString().toLowerCase().startsWith('http') ? Colors.blue : Colors.black87,
+                                decoration: widget.order['delivery_address'].toString().toLowerCase().startsWith('http') ? TextDecoration.underline : null,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
