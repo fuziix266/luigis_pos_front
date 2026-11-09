@@ -9,6 +9,7 @@ import '../data/api_client.dart';
 import '../blocs/catalog/catalog_bloc.dart';
 import '../blocs/orders/orders_bloc.dart';
 import '../config/theme.dart';
+import '../widgets/aviso_error_guardado.dart';
 import 'promo_options_page.dart';
 import 'promo2_options_page.dart';
 import 'package:flutter/services.dart';
@@ -300,6 +301,8 @@ class _NewOrderPageState extends State<NewOrderPage>
           Future.delayed(const Duration(milliseconds: 100), () {
             if (context.mounted) context.go('/orders');
           });
+        } else if (state is OrderSaveError) {
+          mostrarErrorGuardado(context, state.message);
         } else if (state is OrdersError) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(

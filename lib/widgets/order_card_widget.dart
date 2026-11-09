@@ -13,6 +13,8 @@ import 'package:flutter/services.dart';
 class OrderCardWidget extends StatefulWidget {
   final Map<String, dynamic> order;
   final void Function(int orderId, String newStatus)? onStatusChange;
+  final void Function(int orderId, int itemId, String status)?
+      onItemStatusChange;
   final void Function(int orderId)? onDelete;
   final bool isKitchen;
 
@@ -23,6 +25,7 @@ class OrderCardWidget extends StatefulWidget {
     super.key,
     required this.order,
     this.onStatusChange,
+    this.onItemStatusChange,
     this.onDelete,
     this.onUpdate,
     this.isKitchen = false,
@@ -38,6 +41,11 @@ class _OrderCardWidgetState extends State<OrderCardWidget> {
   bool _showActions = false;
   Timer? _timer;
   String _elapsedTime = '';
+  final Map<int, ({String estado, DateTime cuando})> _estadoProductoLocal = {};
+  final Map<int, Timer> _enviosPendientes = {};
+
+  static const _tiposCocina = {'pizza', 'promo', 'side'};
+  static const _cicloCocina = ['NUEVO', 'PREP', 'ARMADO', 'HORNO', 'LISTO'];
 
   @override
   void initState() {
@@ -48,7 +56,135 @@ class _OrderCardWidgetState extends State<OrderCardWidget> {
   @override
   void dispose() {
     _timer?.cancel();
+    for (final entrada in _enviosPendientes.entries) {
+      entrada.value.cancel();
+      final local = _estadoProductoLocal[entrada.key];
+      if (local != null) {
+        widget.onItemStatusChange
+            ?.call(widget.order['id'] as int, entrada.key, local.estado);
+      }
+    }
     super.dispose();
+  }
+
+  bool _esProductoCocina(Map item) =>
+      _tiposCocina.contains(item['item_type']) && item['id'] is num;
+
+  String _estadoProducto(Map item) {
+    final servidor = item['kitchen_status']?.toString() ?? 'NUEVO';
+    final local = _estadoProductoLocal[(item['id'] as num?)?.toInt()];
+    if (local != null &&
+        local.estado != servidor &&
+        DateTime.now().difference(local.cuando).inSeconds < 15) {
+      return local.estado;
+    }
+    return servidor;
+  }
+
+  void _cambiarEstadoProducto(Map item, int paso) {
+    final itemId = (item['id'] as num).toInt();
+    final actual = _cicloCocina.indexOf(_estadoProducto(item));
+    final siguiente =
+        (actual < 0 ? 0 : actual + paso).clamp(0, _cicloCocina.length - 1);
+    if (siguiente == actual) return;
+    final estado = _cicloCocina[siguiente];
+    HapticFeedback.selectionClick();
+    setState(() {
+      _estadoProductoLocal[itemId] = (estado: estado, cuando: DateTime.now());
+    });
+    _enviosPendientes[itemId]?.cancel();
+    _enviosPendientes[itemId] = Timer(const Duration(milliseconds: 600), () {
+      _enviosPendientes.remove(itemId);
+      widget.onItemStatusChange
+          ?.call(widget.order['id'] as int, itemId, estado);
+    });
+  }
+
+  Widget _bloqueProductoCocina(Map item, Widget contenido) {
+    if (!_esProductoCocina(item) || widget.onItemStatusChange == null) {
+      return contenido;
+    }
+    final estado = _estadoProducto(item);
+    final empezado = estado != 'NUEVO';
+    final color =
+        empezado ? AppColors.getStatusColor(estado) : Colors.grey.shade400;
+
+    return Material(
+      color: empezado ? color.withOpacity(0.16) : Colors.white,
+      borderRadius: BorderRadius.circular(8),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => _cambiarEstadoProducto(item, 1),
+        onLongPress: () => _cambiarEstadoProducto(item, -1),
+        child: Container(
+          decoration: BoxDecoration(
+            border: Border(left: BorderSide(color: color, width: 8)),
+          ),
+          padding: const EdgeInsets.only(left: 8, right: 6),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: contenido),
+              Padding(
+                padding: const EdgeInsets.only(top: 8, left: 4),
+                child: _insigniaEstadoProducto(estado, color),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _insigniaEstadoProducto(String estado, Color color) {
+    const letras = {'PREP': 'P', 'ARMADO': 'A', 'HORNO': 'H'};
+    final empezado = estado != 'NUEVO';
+    return Container(
+      width: 38,
+      height: 38,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: empezado ? color : Colors.transparent,
+        borderRadius: BorderRadius.circular(6),
+        border: empezado ? null : Border.all(color: color, width: 2),
+      ),
+      child: estado == 'LISTO'
+          ? const Icon(Icons.check, color: Colors.white, size: 26)
+          : Text(
+              letras[estado] ?? '',
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w900,
+                color: Colors.white,
+              ),
+            ),
+    );
+  }
+
+  bool _mostrarEstadoProducto(Map item) {
+    const enCocina = {'NUEVO', 'PREP', 'ARMADO', 'HORNO'};
+    return enCocina.contains(widget.order['status']) &&
+        _esProductoCocina(item) &&
+        (item['kitchen_status'] ?? 'NUEVO') != 'NUEVO';
+  }
+
+  Widget _chipEstadoProducto(Map item) {
+    final estado = item['kitchen_status'].toString();
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: AppColors.getStatusColor(estado),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        AppColors.getStatusLabel(estado),
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 12,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
   }
 
   void _startTimer() {
@@ -211,13 +347,14 @@ class _OrderCardWidgetState extends State<OrderCardWidget> {
     return Card(
       elevation: 4,
       surfaceTintColor: isNew ? Colors.white : Colors.transparent,
-      color: isNew ? Colors.white : statusColor.withOpacity(0.15),
+      color: isNew ? Colors.white : statusColor.withOpacity(0.28),
       margin: const EdgeInsets.only(bottom: 16),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
         side: isNew
             ? BorderSide(color: Colors.grey.shade300, width: 1.0)
-            : BorderSide(color: statusColor.withOpacity(0.5), width: 1.5),
+            : BorderSide(
+                color: statusColor, width: status == 'LISTO' ? 4 : 2.5),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -516,6 +653,10 @@ class _OrderCardWidgetState extends State<OrderCardWidget> {
                               ],
                             ),
                           ),
+                          if (_mostrarEstadoProducto(item)) ...[
+                            const SizedBox(width: 8),
+                            _chipEstadoProducto(item),
+                          ],
                           const SizedBox(width: 8),
                           Text(
                             '\$${_formatPrice((item['total_price'] ?? 0) as int)}',
@@ -883,12 +1024,12 @@ class _OrderCardWidgetState extends State<OrderCardWidget> {
       margin: EdgeInsets.zero,
       elevation: 2,
       surfaceTintColor: isNew ? Colors.white : Colors.transparent,
-      color: isNew ? Colors.white : statusColor.withOpacity(0.15),
+      color: isNew ? Colors.white : statusColor.withOpacity(0.28),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: isNew
             ? const BorderSide(color: Colors.transparent, width: 0)
-            : BorderSide(color: statusColor.withOpacity(0.5), width: 1.5),
+            : BorderSide(color: statusColor, width: 2.5),
       ),
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -1038,7 +1179,7 @@ class _OrderCardWidgetState extends State<OrderCardWidget> {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
+                  _bloqueProductoCocina(item, Container(
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(vertical: 8),
                     child: Column(
@@ -1183,11 +1324,12 @@ class _OrderCardWidgetState extends State<OrderCardWidget> {
                           }),
                       ],
                     ),
-                  ),
-                  // DIVIDER (except for last item)
+                  )),
                   if (item != items.last)
-                    const Divider(
-                        height: 24, thickness: 1.5, color: Colors.grey),
+                    _esProductoCocina(item) && widget.onItemStatusChange != null
+                        ? const SizedBox(height: 8)
+                        : const Divider(
+                            height: 24, thickness: 1.5, color: Colors.grey),
                 ],
               );
             }),
@@ -1227,18 +1369,6 @@ class _OrderCardWidgetState extends State<OrderCardWidget> {
               const SizedBox(height: 8),
             ],
 
-            // Status Buttons Row
-            Row(
-              children: [
-                _kitchenStatusButton('P', 'PREP', status),
-                const SizedBox(width: 8),
-                _kitchenStatusButton('A', 'ARMADO', status),
-                const SizedBox(width: 8),
-                _kitchenStatusButton('H', 'HORNO', status),
-              ],
-            ),
-            const SizedBox(height: 8),
-
             // Listo Button - Adapted to full width
             SizedBox(
               width: double.infinity,
@@ -1261,14 +1391,8 @@ class _OrderCardWidgetState extends State<OrderCardWidget> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _showConfirmation
                       ? Colors.orange.shade800
-                      : (status == 'LISTO'
-                          ? const Color(0xFF4CAF50)
-                          : const Color(0xFFC8E6C9)),
-                  foregroundColor: _showConfirmation
-                      ? Colors.white
-                      : (status == 'LISTO'
-                          ? Colors.white
-                          : const Color(0xFF2E7D32)),
+                      : AppColors.statusListo,
+                  foregroundColor: Colors.white,
                   padding: EdgeInsets.zero,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(4),
@@ -1291,87 +1415,6 @@ class _OrderCardWidgetState extends State<OrderCardWidget> {
     );
   }
 
-  Widget _kitchenStatusButton(
-      String label, String targetStatus, String currentStatus) {
-    final isActive = currentStatus == targetStatus;
-    final isPast = _statusOrder(currentStatus) > _statusOrder(targetStatus);
-
-    Color bgColor;
-    Color textColor;
-
-    if (isActive) {
-      // Current active status
-      switch (targetStatus) {
-        case 'PREP':
-          bgColor = const Color(0xFFE8E8E8);
-          textColor = Colors.black54;
-          break;
-        case 'ARMADO':
-          bgColor = const Color(0xFFFFF3E0);
-          textColor = const Color(0xFFE65100);
-          break;
-        case 'HORNO':
-          bgColor = const Color(0xFFFFEBEE);
-          textColor = const Color(0xFFC62828);
-          break;
-        default:
-          bgColor = Colors.grey.shade200;
-          textColor = Colors.black54;
-      }
-    } else if (isPast) {
-      bgColor = Colors.grey.shade100;
-      textColor = Colors.grey;
-    } else {
-      bgColor = Colors.grey.shade100;
-      textColor = Colors.black45;
-    }
-
-    return Expanded(
-      child: SizedBox(
-        height: 50,
-        child: ElevatedButton(
-          onPressed: () {
-            widget.onStatusChange
-                ?.call(widget.order['id'] as int, targetStatus);
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: bgColor,
-            foregroundColor: textColor,
-            padding: EdgeInsets.zero,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(4),
-            ),
-            elevation: 0,
-          ),
-          child: Text(
-            label,
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  int _statusOrder(String status) {
-    switch (status) {
-      case 'NUEVO':
-        return 0;
-      case 'PREP':
-        return 1;
-      case 'ARMADO':
-        return 2;
-      case 'HORNO':
-        return 3;
-      case 'LISTO':
-        return 4;
-      default:
-        return -1;
-    }
-  }
-
   // ==========================================
   // GEOCODING / ZONE DETECTION HELPERS
   // ==========================================
@@ -1391,14 +1434,28 @@ class _OrderCardWidgetState extends State<OrderCardWidget> {
     return c;
   }
 
-  static int _feeFromZone(String zone) {
-    if (zone.contains('4.000')) return 4000;
-    if (zone.contains('3.500')) return 3500;
-    return 3000;
+  static const _zonaBase = 1;
+  static const _zonaNorte = 2;
+  static const _zonaInterior = 3;
+
+  static const _nombreZona = {
+    _zonaBase: 'Base',
+    _zonaNorte: 'Norte/Pasado Yerbas Buenas',
+    _zonaInterior: 'Pasado Capitán Ávalos/Interior',
+  };
+
+  static Map<int, int> _tarifasDesdeConfig(Map<String, dynamic> config) {
+    int leer(String clave, int porDefecto) =>
+        int.tryParse(config[clave]?['value']?.toString() ?? '') ?? porDefecto;
+    return {
+      _zonaBase: leer('delivery_base_fee', 3000),
+      _zonaNorte: leer('delivery_zone2_fee', 3500),
+      _zonaInterior: leer('delivery_zone3_fee', 4000),
+    };
   }
 
-  static Future<String> _geocodeForZone(String address) async {
-    String zone = 'Base (\$3.000)';
+  static Future<int> _geocodeForZone(String address) async {
+    int zone = _zonaBase;
     if (address.length < 5) return zone;
 
     try {
@@ -1436,9 +1493,9 @@ class _OrderCardWidgetState extends State<OrderCardWidget> {
 
         if (lat != 0.0 || lng != 0.0) {
           if (_isPointInPolygon(lat, lng, zone4000)) {
-            zone = 'Pasado Capitán Ávalos/Interior (\$4.000)';
+            zone = _zonaInterior;
           } else if (_isPointInPolygon(lat, lng, zone3500)) {
-            zone = 'Norte/Pasado Yerbas Buenas (\$3.500)';
+            zone = _zonaNorte;
           }
         }
       }
@@ -1447,7 +1504,7 @@ class _OrderCardWidgetState extends State<OrderCardWidget> {
     }
 
     // Keyword fallback
-    if (zone == 'Base (\$3.000)') {
+    if (zone == _zonaBase) {
       final lower = address.toLowerCase();
       if (lower.contains('avalos') ||
           lower.contains('ávalos') ||
@@ -1457,9 +1514,9 @@ class _OrderCardWidgetState extends State<OrderCardWidget> {
           lower.contains('cerro') ||
           lower.contains('lluta') ||
           lower.contains('azapa')) {
-        zone = 'Pasado Capitán Ávalos/Interior (\$4.000)';
+        zone = _zonaInterior;
       } else if (lower.contains('yerbas buenas') || lower.contains('norte')) {
-        zone = 'Norte/Pasado Yerbas Buenas (\$3.500)';
+        zone = _zonaNorte;
       }
     }
 
@@ -1477,18 +1534,29 @@ class _OrderCardWidgetState extends State<OrderCardWidget> {
     String payMethod = widget.order['payment_method'] ?? 'Efectivo';
     String delType = widget.order['delivery_type'] ?? 'Local';
 
-    // Geocoding state
-    String detectedZone = 'Base (\$3.000)';
+    final eraDelivery = widget.order['delivery_type'] == 'Delivery';
+    final currentFee = (widget.order['delivery_fee'] as num?)?.toInt() ?? 0;
+
+    Map<int, int> tarifas = _tarifasDesdeConfig(const {});
+    bool configPedida = false;
+    int detectedZone = _zonaBase;
+    bool zonaCambiada = false;
     bool isGeocoding = false;
     Timer? geocodeDebounce;
 
-    // Detect initial zone from existing delivery_fee
-    final currentFee = (widget.order['delivery_fee'] as num?)?.toInt() ?? 0;
-    if (currentFee >= 4000) {
-      detectedZone = 'Pasado Capitán Ávalos/Interior (\$4.000)';
-    } else if (currentFee >= 3500) {
-      detectedZone = 'Norte/Pasado Yerbas Buenas (\$3.500)';
+    bool mantieneEnvioActual() =>
+        eraDelivery && !zonaCambiada && currentFee > 0;
+
+    int zonaMostrada() {
+      if (!mantieneEnvioActual()) return detectedZone;
+      if (currentFee == tarifas[_zonaBase]) return _zonaBase;
+      if (currentFee == tarifas[_zonaNorte]) return _zonaNorte;
+      if (currentFee == tarifas[_zonaInterior]) return _zonaInterior;
+      return _zonaBase;
     }
+
+    int envioAplicado() =>
+        mantieneEnvioActual() ? currentFee : tarifas[detectedZone]!;
 
     final nameCtrl = TextEditingController(text: name);
     final phoneCtrl = TextEditingController(text: phone);
@@ -1498,6 +1566,14 @@ class _OrderCardWidgetState extends State<OrderCardWidget> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) {
+          if (!configPedida) {
+            configPedida = true;
+            ApiClient().getConfig().then((config) {
+              if (ctx.mounted) {
+                setDialogState(() => tarifas = _tarifasDesdeConfig(config));
+              }
+            }).catchError((_) {});
+          }
 
           void onAddressChanged(String value) {
             address = value;
@@ -1509,6 +1585,7 @@ class _OrderCardWidgetState extends State<OrderCardWidget> {
                 if (ctx.mounted) {
                   setDialogState(() {
                     detectedZone = zone;
+                    zonaCambiada = true;
                     isGeocoding = false;
                   });
                 }
@@ -1654,58 +1731,45 @@ class _OrderCardWidgetState extends State<OrderCardWidget> {
                     ),
                   if (delType == 'Delivery') ...[
                     const SizedBox(height: 8),
-                    // Zone indicator chip
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: detectedZone.contains('3.000')
-                            ? Colors.green.shade50
-                            : detectedZone.contains('3.500')
-                                ? Colors.orange.shade50
-                                : Colors.red.shade50,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: detectedZone.contains('3.000')
-                              ? Colors.green.shade300
-                              : detectedZone.contains('3.500')
-                                  ? Colors.orange.shade300
-                                  : Colors.red.shade300,
+                    Builder(builder: (_) {
+                      final zona = zonaMostrada();
+                      final MaterialColor colorZona = switch (zona) {
+                        _zonaInterior => Colors.red,
+                        _zonaNorte => Colors.orange,
+                        _ => Colors.green,
+                      };
+                      return Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: colorZona.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: colorZona.shade300),
                         ),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.location_on,
-                            size: 18,
-                            color: detectedZone.contains('3.000')
-                                ? Colors.green
-                                : detectedZone.contains('3.500')
-                                    ? Colors.orange
-                                    : Colors.red,
-                          ),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              'Envío: \$${_feeFromZone(detectedZone).toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                                color: detectedZone.contains('3.000')
-                                    ? Colors.green.shade700
-                                    : detectedZone.contains('3.500')
-                                        ? Colors.orange.shade700
-                                        : Colors.red.shade700,
+                        child: Row(
+                          children: [
+                            Icon(Icons.location_on, size: 18, color: colorZona),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                'Envío: \$${_formatPrice(envioAplicado())}',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                  color: colorZona.shade700,
+                                ),
                               ),
                             ),
-                          ),
-                          Text(
-                            detectedZone.split('(').first.trim(),
-                            style: const TextStyle(fontSize: 11, color: Colors.grey),
-                          ),
-                        ],
-                      ),
-                    ),
+                            Text(
+                              _nombreZona[zona]!,
+                              style: const TextStyle(
+                                  fontSize: 11, color: Colors.grey),
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
                     const SizedBox(height: 12),
                   ],
                   DropdownButtonFormField<String>(
@@ -1739,25 +1803,21 @@ class _OrderCardWidgetState extends State<OrderCardWidget> {
                   updatedOrder['delivery_address'] = address;
                   updatedOrder['delivery_type'] = delType;
                   updatedOrder['payment_method'] = payMethod;
+                  updatedOrder.remove('activation_time');
 
-                  // Update delivery_fee item based on detected zone
-                  if (delType == 'Delivery' && updatedOrder['items'] != null) {
-                    final newFee = _feeFromZone(detectedZone);
+                  if (updatedOrder['items'] != null) {
                     final items = List<Map<String, dynamic>>.from(
                       (updatedOrder['items'] as List).map((e) => Map<String, dynamic>.from(e as Map)),
                     );
-
-                    // Remove existing delivery_fee item
                     items.removeWhere((item) => item['item_type'] == 'delivery_fee');
-
-                    // Add updated delivery_fee item
-                    items.add({
-                      'item_name': 'Envío',
-                      'item_type': 'delivery_fee',
-                      'unit_price': newFee,
-                      'quantity': 1,
-                    });
-
+                    if (delType == 'Delivery') {
+                      items.add({
+                        'item_name': 'Envío',
+                        'item_type': 'delivery_fee',
+                        'unit_price': envioAplicado(),
+                        'quantity': 1,
+                      });
+                    }
                     updatedOrder['items'] = items;
                   }
 
@@ -1893,7 +1953,7 @@ class _OrderCardWidgetState extends State<OrderCardWidget> {
     } else if (status == 'HORNO') {
       bgColor = Colors.red;
     } else if (status == 'LISTO') {
-      bgColor = Colors.green;
+      bgColor = AppColors.statusListo;
     } else if (status == 'RETIRADO') {
       bgColor = const Color(0xFF7B1FA2); // Purple
     } else if (status == 'EN_CAMINO') {

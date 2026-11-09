@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import '../blocs/orders/orders_bloc.dart';
 import '../config/theme.dart';
+import '../widgets/aviso_error_guardado.dart';
 import '../widgets/order_card_widget.dart';
 
 class ScheduledOrdersPage extends StatefulWidget {
@@ -36,7 +37,14 @@ class _ScheduledOrdersPageState extends State<ScheduledOrdersPage> {
           ),
         ],
       ),
-      body: BlocBuilder<OrdersBloc, OrdersState>(
+      body: BlocConsumer<OrdersBloc, OrdersState>(
+        listenWhen: (_, actual) => actual is OrderSaveError,
+        listener: (context, state) {
+          if (state is OrderSaveError) {
+            mostrarErrorGuardado(context, state.message);
+          }
+        },
+        buildWhen: redibujarListaPedidos,
         builder: (context, state) {
           if (state is OrdersLoading) {
             return const Center(child: CircularProgressIndicator());

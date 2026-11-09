@@ -209,13 +209,15 @@ class _DeliveryPageState extends State<DeliveryPage> {
         if (state is OrdersLoaded) {
           final orders = state.orders;
           int totalDeliveryFees = 0;
+          final repartosValidos =
+              orders.where((o) => o['status'] != 'ELIMINADO').length;
           for (var o in orders) {
             // Count delivery fee if the order went through the delivery flow:
             // has time_pickup (RETIRADO/EN_CAMINO) or is ENTREGADO
             final hasPickup = o['time_pickup'] != null &&
                 o['time_pickup'].toString().isNotEmpty;
             final isDelivered = o['status'] == 'ENTREGADO';
-            if (hasPickup || isDelivered) {
+            if (o['status'] != 'ELIMINADO' && (hasPickup || isDelivered)) {
               totalDeliveryFees += (o['delivery_fee'] as num? ?? 0).toInt();
             }
           }
@@ -254,7 +256,7 @@ class _DeliveryPageState extends State<DeliveryPage> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    _summaryItem('Total Repartos', '${orders.length}',
+                    _summaryItem('Total Repartos', '$repartosValidos',
                         Icons.local_shipping),
                     _summaryItem('Ganancia Envíos',
                         '\$${_formatPrice(totalDeliveryFees)}', Icons.payments,

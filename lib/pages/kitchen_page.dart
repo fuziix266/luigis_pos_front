@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'dart:html' as html;
 import 'dart:js' as js;
 import '../blocs/orders/orders_bloc.dart';
+import '../widgets/aviso_error_guardado.dart';
 import '../widgets/order_card_widget.dart';
 
 class KitchenPage extends StatefulWidget {
@@ -122,7 +123,14 @@ class _KitchenPageState extends State<KitchenPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
-            child: BlocBuilder<OrdersBloc, OrdersState>(
+            child: BlocConsumer<OrdersBloc, OrdersState>(
+              listenWhen: (_, actual) => actual is OrderSaveError,
+              listener: (context, state) {
+                if (state is OrderSaveError) {
+                  mostrarErrorGuardado(context, state.message);
+                }
+              },
+              buildWhen: redibujarListaPedidos,
               builder: (context, state) {
                 if (state is OrdersLoading) {
                   return const Center(
@@ -169,11 +177,17 @@ class _KitchenPageState extends State<KitchenPage> {
                           width: 280,
                           margin: const EdgeInsets.only(right: 16),
                           child: OrderCardWidget(
+                            key: ValueKey(state.orders[index]['id']),
                             order: state.orders[index],
                             isKitchen: true,
                             onStatusChange: (id, status) {
                               context.read<OrdersBloc>().add(
                                     UpdateOrderStatus(id, status),
+                                  );
+                            },
+                            onItemStatusChange: (id, itemId, status) {
+                              context.read<OrdersBloc>().add(
+                                    UpdateItemStatus(id, itemId, status),
                                   );
                             },
                           ),

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:dio/dio.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
 import '../../data/api_client.dart';
@@ -46,6 +47,15 @@ class UpdateOrderStatus extends OrdersEvent {
   UpdateOrderStatus(this.orderId, this.status);
   @override
   List<Object?> get props => [orderId, status];
+}
+
+class UpdateItemStatus extends OrdersEvent {
+  final int orderId;
+  final int itemId;
+  final String status;
+  UpdateItemStatus(this.orderId, this.itemId, this.status);
+  @override
+  List<Object?> get props => [orderId, itemId, status];
 }
 
 class DeleteOrder extends OrdersEvent {
@@ -113,6 +123,25 @@ class OrdersError extends OrdersState {
   List<Object?> get props => [message];
 }
 
+class OrderSaveError extends OrdersState {
+  final String message;
+  final DateTime when = DateTime.now();
+  OrderSaveError(this.message);
+  @override
+  List<Object?> get props => [message, when];
+}
+
+String mensajeErrorGuardado(Object e) {
+  if (e is DioException) {
+    final data = e.response?.data;
+    if (data is Map && data['error'] is String) return data['error'] as String;
+    if (e.response == null) {
+      return 'No hay conexión con el servidor. Revisa internet e intenta de nuevo.';
+    }
+  }
+  return 'No se pudo guardar el pedido. Intenta de nuevo.';
+}
+
 // BLoC
 class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
   final ApiClient apiClient;
@@ -133,6 +162,7 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
     on<CreateOrder>(_onCreateOrder);
     on<UpdateOrder>(_onUpdateOrder);
     on<UpdateOrderStatus>(_onUpdateStatus);
+    on<UpdateItemStatus>(_onUpdateItemStatus);
     on<DeleteOrder>(_onDeleteOrder);
     on<StartPolling>(_onStartPolling);
     on<StopPolling>(_onStopPolling);
@@ -271,7 +301,7 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
       final order = await apiClient.createOrder(event.data);
       emit(OrderCreated(order));
     } catch (e) {
-      emit(OrdersError('Error creando pedido: ${e.toString()}'));
+      emit(OrderSaveError(mensajeErrorGuardado(e)));
     }
   }
 
@@ -279,14 +309,13 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
     UpdateOrder event,
     Emitter<OrdersState> emit,
   ) async {
-    emit(OrdersLoading());
     try {
       final order = await apiClient.updateOrder(event.orderId, event.data);
       emit(OrderUpdated(order));
-      _reloadCurrentView();
     } catch (e) {
-      emit(OrdersError('Error: ${e.toString()}'));
+      emit(OrderSaveError(mensajeErrorGuardado(e)));
     }
+    _reloadCurrentView();
   }
 
   Future<void> _onUpdateStatus(
@@ -299,6 +328,19 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
     } catch (e) {
       emit(OrdersError(e.toString()));
     }
+  }
+
+  Future<void> _onUpdateItemStatus(
+    UpdateItemStatus event,
+    Emitter<OrdersState> emit,
+  ) async {
+    try {
+      await apiClient.updateItemStatus(
+          event.orderId, event.itemId, event.status);
+    } catch (e) {
+      emit(OrderSaveError(mensajeErrorGuardado(e)));
+    }
+    _reloadCurrentView();
   }
 
   Future<void> _onDeleteOrder(

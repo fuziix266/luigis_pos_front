@@ -142,6 +142,15 @@ class ApiClient {
     return _ensureMap(response.data)['data'] ?? {};
   }
 
+  Future<Map<String, dynamic>> updateItemStatus(
+      int orderId, int itemId, String status) async {
+    final response = await _dio.patch(
+      '/api/orders/$orderId/items/$itemId/status',
+      data: {'status': status},
+    );
+    return _ensureMap(response.data)['data'] ?? {};
+  }
+
   // ===== SPECIALIZED VIEWS =====
   Future<List<dynamic>> getKitchenOrders() async {
     final response = await _dio.get('/api/orders/kitchen');
